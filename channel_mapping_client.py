@@ -1,124 +1,158 @@
-#!/usr/bin/env python3
-import board
-import busio
-import adafruit_pca9685
+from __future__ import annotations
+
 import socket
 import signal
 import sys
+from typing import Dict, Tuple
 
-# Global server socket variable for cleanup
-server_socket = None
+try:
+    import board  # type: ignore
+    import busio  # type: ignore
+    import adafruit_pca9685  # type: ignore
+    HARDWARE = True
+except ImportError:
+    # Dummy fallback so the script is testable on non‑Pi hosts.
+    HARDWARE = False
 
-# Default motor channel mapping (This will be dynamic)
-motor_map = {}
+    class _DummyCh:
+        def __init__(self):
+            self.duty_cycle = 0
+    class _DummyPCA:
+        def __init__(self):
+            self.channels = [_DummyCh() for _ in range(16)]
+            self.frequency = 100
+    class _DummyI2C: pass
+    class _DummyBusio:
+        @staticmethod
+        def I2C(*_):
+            return _DummyI2C()
+    class _DummyBoard:
+        SCL = None
+        SDA = None
+    board = _DummyBoard()  # type: ignore
+    busio = _DummyBusio()  # type: ignore
+    adafruit_pca9685 = type("adafruit_pca9685", (), {"PCA9685": _DummyPCA})  # type: ignore
 
-# ------------------------------------------------------------------------------
-# Polarity definitions
-# ------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Globals
+# ---------------------------------------------------------------------------
 FORWARD_POLARITY = (0, 0xFFFF)
 BACKWARD_POLARITY = (0xFFFF, 0)
 
-# ------------------------------------------------------------------------------
-# Initialize PCA9685 on the Pi's I2C
-# ------------------------------------------------------------------------------
-i2c = busio.I2C(board.SCL, board.SDA)
-pca = adafruit_pca9685.PCA9685(i2c)
-pca.frequency = 100  # Hz
+MOTOR_MAP: Dict[int, Tuple[int, int]] = {}
 
-# ------------------------------------------------------------------------------
-# Set motor function
-# ------------------------------------------------------------------------------
-def set_motor(motor_id, direction, speed):
-    speed_channel, dir_channel = motor_map.get(motor_id, (None, None))
-    if not speed_channel or not dir_channel:
-        return "ERROR: Motor channel not mapped"
-    
+# ---------------------------------------------------------------------------
+# Hardware init
+# ---------------------------------------------------------------------------
+i2c = busio.I2C(board.SCL, board.SDA)  # type: ignore
+pca = adafruit_pca9685.PCA9685(i2c)    # type: ignore
+pca.frequency = 100
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def clamp(val: int, lo: int = 0, hi: int = 65535) -> int:
+    return max(lo, min(hi, val))
+
+
+def set_motor(motor_id: int, direction: str, speed: int) -> str:
+    if motor_id not in MOTOR_MAP:
+        return f"ERROR: motor {motor_id} not mapped"
+
+    speed_ch, dir_ch = MOTOR_MAP[motor_id]
+    speed = clamp(speed)
+
     if direction == "forward":
-        pca.channels[dir_channel].duty_cycle = FORWARD_POLARITY[1]
-        pca.channels[speed_channel].duty_cycle = speed
+        pca.channels[dir_ch].duty_cycle = FORWARD_POLARITY[1]
     elif direction == "backward":
-        pca.channels[dir_channel].duty_cycle = BACKWARD_POLARITY[1]
-        pca.channels[speed_channel].duty_cycle = speed
+        pca.channels[dir_ch].duty_cycle = BACKWARD_POLARITY[1]
     elif direction == "brake":
-        # Example brake: set both channels to 0 (adjust per your hardware requirements)
-        pca.channels[speed_channel].duty_cycle = 0
-        pca.channels[dir_channel].duty_cycle = 0
+        pca.channels[dir_ch].duty_cycle = 0
+        speed = 0
+    else:
+        return "ERROR: direction must be forward/backward/brake"
 
-# ------------------------------------------------------------------------------
-# Parse and execute command function
-# ------------------------------------------------------------------------------
-def parse_and_execute(command_str):
-    command_str = command_str.strip()
-    if command_str == "ping":
+    pca.channels[speed_ch].duty_cycle = speed
+    return f"OK: motor={motor_id},dir={direction},speed={speed}"
+
+
+# ---------------------------------------------------------------------------
+# Command parser
+# ---------------------------------------------------------------------------
+
+def parse_and_execute(cmd: str) -> str:
+    cmd = cmd.strip()
+    if cmd == "ping":
         return "pong"
-    
-    parts = command_str.split(",")
-    if len(parts) != 3:
-        return "ERROR: invalid command format (expected motor_id,direction,speed)"
-    
-    try:
-        motor_id = int(parts[0])
-        direction = parts[1].lower()
-        speed = int(parts[2])
-        
-        if motor_id not in motor_map:
-            return f"ERROR: motor_id must be mapped, got {motor_id}"
-        if direction not in ["forward", "backward", "brake"]:
-            return "ERROR: direction must be forward, backward, or brake"
-        
-        # Clamp speed
-        speed = max(0, min(speed, 65535))
-        
-        set_motor(motor_id, direction, speed)
-        return f"OK: motor={motor_id}, dir={direction}, speed={speed}"
-    except ValueError:
-        return "ERROR: could not parse motor_id or speed"
 
-# ------------------------------------------------------------------------------
-# Signal handler for graceful exit
-# ------------------------------------------------------------------------------
-def clean_exit(signum, frame):
+    parts = cmd.split(",")
+
+    # ---- mapping command ----------------------------------------------------
+    if parts[0] == "map":
+        if len(parts) != 4:
+            return "ERROR: format map,<motor_id>,<speed_ch>,<dir_ch>"
+        try:
+            motor_id, speed_ch, dir_ch = map(int, parts[1:])
+        except ValueError:
+            return "ERROR: non‑integer values in map command"
+        MOTOR_MAP[motor_id] = (speed_ch, dir_ch)
+        return (f"OK: mapped motor {motor_id} → speed={speed_ch},dir={dir_ch}")
+
+    # ---- motion command -----------------------------------------------------
+    if len(parts) != 3:
+        return "ERROR: format <motor_id>,<direction>,<speed>"
+    try:
+        m_id = int(parts[0])
+        dirn = parts[1].lower()
+        spd  = int(parts[2])
+    except ValueError:
+        return "ERROR: non‑integer motor_id or speed"
+
+    return set_motor(m_id, dirn, spd)
+
+
+# ---------------------------------------------------------------------------
+# TCP server
+# ---------------------------------------------------------------------------
+server_socket: socket.socket | None = None
+
+
+def clean_exit(_sig, _frm):
     global server_socket
-    print("\nReceived signal to terminate. Cleaning up...")
+    print("\nShutting down motor server …")
     if server_socket:
         server_socket.close()
-        print("Socket closed.")
     sys.exit(0)
 
-# Register signal handlers for SIGINT and SIGTERM
 signal.signal(signal.SIGINT, clean_exit)
 signal.signal(signal.SIGTERM, clean_exit)
 
-# ------------------------------------------------------------------------------
-# Main server loop
-# ------------------------------------------------------------------------------
-def main():
+
+def main() -> None:
     global server_socket
-    HOST = "0.0.0.0"
-    PORT = 12345
-    print(f"Starting motor server on {HOST}:{PORT}")
+    HOST, PORT = "0.0.0.0", 12345
+    print(f"Motor server listening on {HOST}:{PORT}")
+    if not HARDWARE:
+        print("⚠️  Dummy hardware mode – no real PCA9685 detected.")
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # Allow immediate reuse of the address after the server stops.
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    
+
     try:
         server_socket.bind((HOST, PORT))
-        server_socket.listen(5)
-        
+        server_socket.listen()
         while True:
-            client, address = server_socket.accept()
-            data = client.recv(1024).decode("utf-8")
-            if data:
-                response = parse_and_execute(data)
-                client.sendall(response.encode("utf-8"))
-            client.close()
-    except Exception as e:
-        print(f"Server error: {e}")
+            client, _addr = server_socket.accept()
+            with client:
+                data = client.recv(1024).decode()
+                if data:
+                    resp = parse_and_execute(data)
+                    client.sendall(resp.encode())
     finally:
         if server_socket:
             server_socket.close()
-            print("Socket closed in finally block.")
+
 
 if __name__ == "__main__":
     main()
