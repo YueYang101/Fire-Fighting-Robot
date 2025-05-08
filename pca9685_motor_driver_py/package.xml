@@ -1,15 +1,19 @@
 <?xml version="1.0"?>
-<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>pca9685_motor_driver_py</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>ROS 2 motor driver for a PCA9685 PWM board</description>
   <maintainer email="ubuntu-robot-pi4@todo.todo">ubuntu-robot-pi4</maintainer>
   <license>MIT</license>
 
-  <depend>rclpy</depend>
-  <depend>std_srvs</depend>
+  <!-- build tool -->
+  <buildtool_depend>ament_python</buildtool_depend>
 
+  <!-- run-time deps -->
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+
+  <!-- (optional) test deps -->
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
