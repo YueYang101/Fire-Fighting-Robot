@@ -1,13 +1,20 @@
 cmake_minimum_required(VERSION 3.8)
 project(pca9685_interfaces)
 
+# 1) find the ROS 2 code-generator framework
 find_package(rosidl_default_generators REQUIRED)
 
-# Generate Python/C++ code for the service -------------------------------
+# 2) find every interface pkg you listed under DEPENDENCIES
+find_package(builtin_interfaces REQUIRED)
+find_package(std_msgs REQUIRED)
+
+# 3) now generate your service code
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SetMotor.srv"
-  DEPENDENCIES builtin_interfaces std_msgs   # list any msgs you use
+  DEPENDENCIES
+    builtin_interfaces
+    std_msgs
 )
 
-# Nothing to install manually; rosidl + ament do all the work
+# 4) boilerplate
 ament_package()
