@@ -2,20 +2,19 @@
 """
 motor_driver_node.py
 --------------------
-ROS 2 (rclpy) node that drives DC motors through an Adafruit PCA9685
-16-channel PWM board.  Each motor uses two output channels:
+ROS 2 node that drives DC motors through an Adafruit PCA9685 PWM board.
 
+Each motor uses two PCA channels:
     • speed_ch – duty-cycle (0-65535) → PWM duty (speed)
-    • dir_ch   – duty-cycle (0 % or 100 %) → H-bridge direction pin
+    • dir_ch   – duty-cycle (0 % or 100 %) → H-bridge direction
 
-The mapping is provided at run-time via the *motor_map* parameter,
-encoded as a flat INTEGER_ARRAY:
+The mapping is supplied at run-time via the parameter *motor_map*
+(encoded as an INTEGER_ARRAY):
 
     motor_map: [speed0, dir0,  speed1, dir1,  …]
 
 Example for two motors:
-
-    motor_map: [0, 1, 2, 3]      # motor 0 → CH0/1,  motor 1 → CH2/3
+    motor_map: [0, 1, 2, 3]   # motor 0 → CH0/1, motor 1 → CH2/3
 """
 
 from __future__ import annotations
@@ -23,19 +22,18 @@ from typing import Dict, Tuple
 
 import rclpy
 from rclpy.node import Node
-from rclpy.parameter import Parameter                        # used only for typing
+from rclpy.parameter import Parameter
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType
 from pca9685_interfaces.srv import SetMotor
 
-# ─────────────────────────────────────────── hardware abstraction
+# ────────────────────────────── hardware abstraction (stub fallback)
 try:
-    import board                      # type: ignore
-    import busio                      # type: ignore
-    import adafruit_pca9685           # type: ignore
+    import board                # type: ignore
+    import busio                # type: ignore
+    import adafruit_pca9685     # type: ignore
 
     HARDWARE = True
-except ImportError:
-    # Fallback so the node can run on a laptop with no I²C bus
+except ImportError:             # running on a PC with no I²C bus
     HARDWARE = False
 
     class _DummyChannel:
@@ -47,30 +45,34 @@ except ImportError:
             self.channels = [_DummyChannel() for _ in range(16)]
             self.frequency = 100
 
-    class _DummyI2C:  # pylint: disable=too-few-public-methods
+    class _DummyI2C:
         pass
 
     busio = type("busio", (), {"I2C": lambda *_: _DummyI2C()})
     board = type("board", (), {"SCL": None, "SDA": None})
     adafruit_pca9685 = type("adafruit_pca9685", (), {"PCA9685": _DummyPCA})
 
-# ─────────────────────────────────────────── constants & helpers
-FORWARD_POLARITY  = (0, 0xFFFF)   # (Lo,Hi) on dir_ch  → forward
-BACKWARD_POLARITY = (0xFFFF, 0)   # (Hi,Lo)            → reverse
+# ────────────────────────────── helpers
+FORWARD_POLARITY  = (0, 0xFFFF)     # (Lo,Hi) on dir_ch  → forward
+BACKWARD_POLARITY = (0xFFFF, 0)     # (Hi,Lo)            → reverse
 CLAMP = lambda v, lo=0, hi=0xFFFF: max(lo, min(hi, v))
 
-# ─────────────────────────────────────────── main node class
+# ────────────────────────────── main node
 class MotorDriver(Node):
-
     def __init__(self):
         super().__init__("motor_driver")
 
-        # 1. Declare parameters
-        #    motor_map must be an INTEGER_ARRAY so we force the type here.
+        # 1. Declare parameters (force motor_map to be INTEGER_ARRAY)
         self.declare_parameter(
             "motor_map",
-            [],  # default value
-            ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER_ARRAY)
+            Parameter(                          # typed default value
+                "motor_map",
+                Parameter.Type.INTEGER_ARRAY,
+                [0, 0]                          # dummy; overridden at run-time
+            ),
+            ParameterDescriptor(
+                type=ParameterType.PARAMETER_INTEGER_ARRAY
+            )
         )
         self.declare_parameter("pwm_frequency", 100)  # Hz
 
@@ -92,9 +94,9 @@ class MotorDriver(Node):
         }
         pwm_freq = int(self.get_parameter("pwm_frequency").value)
 
-        # 3. Initialise hardware (or stub)
-        i2c = busio.I2C(board.SCL, board.SDA)           # type: ignore
-        self.pca = adafruit_pca9685.PCA9685(i2c)        # type: ignore
+        # 3. Init hardware (real or stub)
+        i2c = busio.I2C(board.SCL, board.SDA)          # type: ignore
+        self.pca = adafruit_pca9685.PCA9685(i2c)       # type: ignore
         self.pca.frequency = pwm_freq
 
         self.get_logger().info(
@@ -103,10 +105,10 @@ class MotorDriver(Node):
             f"({'real' if HARDWARE else 'dummy'} hardware)"
         )
 
-        # 4. Create ROS service
+        # 4. ROS service
         self.create_service(SetMotor, "set_motor", self.handle_set_motor)
 
-    # --------------------------- service callback -------------------------
+    # -------------------------- service callback -------------------------
     def handle_set_motor(
         self,
         req: SetMotor.Request,
@@ -142,7 +144,7 @@ class MotorDriver(Node):
         )
         return res
 
-# ─────────────────────────────────────────── module entry-point
+# ────────────────────────────── entry-point
 def main(args=None):
     rclpy.init(args=args)
     node = MotorDriver()
