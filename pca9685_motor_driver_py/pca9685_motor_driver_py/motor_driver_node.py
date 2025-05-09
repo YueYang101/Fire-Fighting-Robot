@@ -35,7 +35,7 @@ from typing import Dict, Tuple
 
 import rclpy
 from rclpy.node import Node
-from pca9685_motor_driver_py.srv import SetMotor
+from pca9685_interfaces.srv import SetMotor
 
 # ───────────────────────────────────────────────── hardware layer
 try:
