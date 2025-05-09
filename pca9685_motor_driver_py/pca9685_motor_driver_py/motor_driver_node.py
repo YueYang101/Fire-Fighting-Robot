@@ -5,15 +5,17 @@ motor_driver_node.py
 ROS 2 (rclpy) node that drives DC motors through an Adafruit PCA9685
 16-channel PWM board.  Each motor needs two output channels:
 
-    • speed_ch – duty-cycle (0-65535) → motor speed / PWM
-    • dir_ch   – duty-cycle (0% or 100%) → H-bridge direction pin
+    • speed_ch – duty-cycle (0-65535) → PWM duty (speed)
+    • dir_ch   – duty-cycle (0 % or 100 %) → H-bridge direction pin
 
-The mapping is provided at runtime via the YAML parameter *motor_map*:
+The mapping is provided at run-time via the *motor_map* parameter,
+encoded as a flat integer array:
 
-motor_map:
-  0: [0, 1]   # motor 0 : speed-CH 0, dir-CH 1
-  1: [2, 3]   # motor 1 : speed-CH 2, dir-CH 3
-  …
+    motor_map: [speed0, dir0,  speed1, dir1,  …]
+
+Example for two motors:
+
+    motor_map: [0, 1, 2, 3]        # motor 0 → CH0/1, motor 1 → CH2/3
 
 Service API
 ===========
@@ -27,7 +29,7 @@ Response  { bool   success,
             string message     }
 
 ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-Author : Yang Yue  <zcemuex@ucl.ac.uk>   MIT License
+Author :  Yang Yue  <zcemuex@ucl.ac.uk>            MIT License
 """
 
 from __future__ import annotations
@@ -37,7 +39,7 @@ import rclpy
 from rclpy.node import Node
 from pca9685_interfaces.srv import SetMotor
 
-# ───────────────────────────────────────────────── hardware layer
+# ────────────────────────────────────────────────── hardware layer
 try:
     import board                # type: ignore
     import busio                # type: ignore
@@ -64,28 +66,38 @@ except ImportError:
     board = type("board", (), {"SCL": None, "SDA": None})
     adafruit_pca9685 = type("adafruit_pca9685", (), {"PCA9685": _DummyPCA})
 
-# ───────────────────────────────────────────────── constants
-FORWARD_POLARITY  = (0, 0xFFFF)   # (Lo,Hi) on dir_ch  => forward
-BACKWARD_POLARITY = (0xFFFF, 0)   # (Hi,Lo)            => reverse
-
+# ────────────────────────────────────────────────── constants
+FORWARD_POLARITY  = (0, 0xFFFF)   # (Lo,Hi) on dir_ch  → forward
+BACKWARD_POLARITY = (0xFFFF, 0)   # (Hi,Lo)            → reverse
 CLAMP = lambda v, lo=0, hi=0xFFFF: max(lo, min(hi, v))
 
-# ───────────────────────────────────────────────── the ROS node
+# ────────────────────────────────────────────────── the ROS node
 class MotorDriver(Node):
 
     def __init__(self):
         super().__init__("motor_driver")
 
         # 1. declare parameters (appear in YAML)
-        self.declare_parameter("motor_map",   {})      # Dict[int, 2-tuple]
-        self.declare_parameter("pwm_frequency", 100)   # Hz
+        #    motor_map is a *flat* integer array of channel numbers
+        self.declare_parameter("motor_map",   [])     # List[int]
+        self.declare_parameter("pwm_frequency", 100)  # Hz
 
         # 2. read parameters
-        self.motor_map: Dict[int, Tuple[int, int]] = self.get_parameter(
-            "motor_map").get_parameter_value().integer_array_value  # type: ignore
-        # integer_array_value returns List[int]; reshape into pairs
-        self.motor_map = {i: tuple(self.motor_map[i * 2:i * 2 + 2])
-                          for i in range(len(self.motor_map)//2)}
+        flat_map = self.get_parameter("motor_map") \
+                         .get_parameter_value().integer_array_value
+
+        if len(flat_map) % 2:
+            self.get_logger().fatal(
+                "motor_map must contain an even number of integers "
+                "(speed_ch, dir_ch pairs)")
+            rclpy.shutdown()
+            return
+
+        # reshape into {motor_id: (speed_ch, dir_ch)}
+        self.motor_map: Dict[int, Tuple[int, int]] = {
+            i: (flat_map[2 * i], flat_map[2 * i + 1])
+            for i in range(len(flat_map) // 2)
+        }
         pwm_freq = int(self.get_parameter("pwm_frequency").value)
 
         # 3. init hardware (or stub)
@@ -101,7 +113,7 @@ class MotorDriver(Node):
         # 4. ROS service
         self.create_service(SetMotor, "set_motor", self.handle_set_motor)
 
-    # ---------------------- service callback ------------------------------
+    # ----------------------------- service callback -----------------------
     def handle_set_motor(self,
                          req: SetMotor.Request,
                          res: SetMotor.Response) -> SetMotor.Response:
@@ -134,7 +146,7 @@ class MotorDriver(Node):
         return res
 
 
-# ──────────────────────────────────────────── main entry-point
+# ───────────────────────────────────────────── main entry-point
 def main(args=None):
     rclpy.init(args=args)
     node = MotorDriver()
