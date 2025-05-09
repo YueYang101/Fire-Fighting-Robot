@@ -1,6 +1,0 @@
-int32  motor_id
-string direction   # forward | backward | brake
-uint16 speed       # 0-65535
----
-bool   success
-string message
