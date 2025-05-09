@@ -65,16 +65,10 @@ class MotorDriver(Node):
         # 1. Declare parameters (force motor_map to be INTEGER_ARRAY)
         self.declare_parameter(
             "motor_map",
-            Parameter(                          # typed default value
-                "motor_map",
-                Parameter.Type.INTEGER_ARRAY,
-                [0, 0]                          # dummy; overridden at run-time
-            ),
-            ParameterDescriptor(
-                type=ParameterType.PARAMETER_INTEGER_ARRAY
-            )
+            [0, 0],                                                   # <- plain int list
+            ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER_ARRAY)
         )
-        self.declare_parameter("pwm_frequency", 100)  # Hz
+        self.declare_parameter("pwm_frequency", 100)
 
         # 2. Read parameters
         flat_map = self.get_parameter("motor_map") \
