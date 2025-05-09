@@ -15,12 +15,12 @@ encoded as a flat integer array:
 
 Example for two motors:
 
-    motor_map: [0, 1, 2, 3]        # motor 0 → CH0/1, motor 1 → CH2/3
+    motor_map: [0, 1, 2, 3]      # motor 0 → CH0/1,  motor 1 → CH2/3
 
 Service API
 ===========
 
-Service  :  /set_motor   (pca9685_motor_driver_py/srv/SetMotor)
+Service  :  /set_motor   (pca9685_interfaces/srv/SetMotor)
 
 Request   { int32  motor_id,
             string direction   # "forward" | "backward" | "brake"
@@ -29,7 +29,7 @@ Response  { bool   success,
             string message     }
 
 ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-Author :  Yang Yue  <zcemuex@ucl.ac.uk>            MIT License
+Author :  Yang Yue  <zcemuex@ucl.ac.uk>         MIT License
 """
 
 from __future__ import annotations
@@ -37,6 +37,7 @@ from typing import Dict, Tuple
 
 import rclpy
 from rclpy.node import Node
+from rclpy.parameter import Parameter, ParameterDescriptor
 from pca9685_interfaces.srv import SetMotor
 
 # ────────────────────────────────────────────────── hardware layer
@@ -79,7 +80,12 @@ class MotorDriver(Node):
 
         # 1. declare parameters (appear in YAML)
         #    motor_map is a *flat* integer array of channel numbers
-        self.declare_parameter("motor_map",   [])     # List[int]
+        self.declare_parameter(
+            "motor_map",
+            [],                                   # default value
+            ParameterDescriptor(
+                type=Parameter.Type.INTEGER_ARRAY))   # ← enforce type
+
         self.declare_parameter("pwm_frequency", 100)  # Hz
 
         # 2. read parameters
@@ -100,7 +106,7 @@ class MotorDriver(Node):
         }
         pwm_freq = int(self.get_parameter("pwm_frequency").value)
 
-        # 3. init hardware (or stub)
+        # 3. init hardware (real or stub)
         i2c = busio.I2C(board.SCL, board.SDA)          # type: ignore
         self.pca = adafruit_pca9685.PCA9685(i2c)       # type: ignore
         self.pca.frequency = pwm_freq
