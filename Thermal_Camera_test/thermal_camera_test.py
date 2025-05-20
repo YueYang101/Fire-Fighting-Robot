@@ -1,39 +1,48 @@
 #!/usr/bin/env python3
-import time, board, busio, numpy as np, cv2
-import adafruit_mlx90640                                      # pip install adafruit-blinka adafruit-circuitpython-mlx90640
-                                                              # pip install opencv-python
-# ---------- hardware setup ----------
-i2c = busio.I2C(board.SCL, board.SDA, frequency=800_000)      # or 1_000_000 once everything is stable
+"""
+thermal_to_excel.py  –  capture MLX90640 frames and save each one as a
+                        worksheet inside thermal_frames.xlsx
+"""
+import time, os, pathlib, board, busio, numpy as np, pandas as pd
+import adafruit_mlx90640
+
+# ---------- ONE-TIME SENSOR SET-UP ----------
+i2c = busio.I2C(board.SCL, board.SDA, frequency=800_000)           # 0.8 MHz bus
 mlx = adafruit_mlx90640.MLX90640(i2c)
-mlx.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_8_HZ # 8 FPS; try REFRESH_16_HZ after bus tuning
+mlx.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_1_HZ      # sensor delivers 1 FPS
 
-flat  = np.zeros(24 * 32, dtype=np.float32)                   # 1-D scratch buffer
+# ---------- DESTINATION FILE ----------
+xlsx_path = pathlib.Path(__file__).with_name("thermal_frames.xlsx")
 
-# ---------- live loop ----------
-while True:
-    try:
-        mlx.getFrame(flat)                                    # fills 'flat' in place
-        frame = np.flipud(flat.reshape(24, 32))               # 2-D °C matrix, flipped so up = up
+# ---------- MAIN LOOP ----------
+flat = np.zeros(24 * 32, dtype=np.float32)
+print("Capturing one frame every 3 s →", xlsx_path)
+try:
+    while True:
+        try:
+            # 1) grab a frame
+            mlx.getFrame(flat)
+            frame = flat.reshape((24, 32))                         # 2-D °C matrix
 
-        # ---- convert to colour image ----
-        img  = cv2.normalize(frame, None, 0, 255, cv2.NORM_MINMAX) \
-                     .astype(np.uint8)                        # 0-255 8-bit
-        img  = cv2.resize(img, (320, 240), interpolation=cv2.INTER_CUBIC)
-        img  = cv2.applyColorMap(img, cv2.COLORMAP_TURBO)
+            # 2) convert to DataFrame (32 columns, 24 rows)
+            df = pd.DataFrame(frame)
 
-        # ---- optional: overlay min / max temps ----
-        min_val, max_val, *_ = cv2.minMaxLoc(frame)
-        cv2.putText(img, f"min {min_val:4.1f}C", (5, 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
-        cv2.putText(img, f"max {max_val:4.1f}C", (5, 235),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
+            # 3) append to the Excel file (new sheet per frame)
+            timestamp = time.strftime("%Y-%m-d_%Hh%Mm%Ss")
+            with pd.ExcelWriter(
+                    xlsx_path,
+                    engine="openpyxl",
+                    mode="a" if xlsx_path.exists() else "w",
+                    if_sheet_exists="new") as writer:
+                df.to_excel(writer, sheet_name=timestamp,
+                             index=False, header=False)
 
-        # ---- show window ----
-        cv2.imshow("MLX90640 Heat-map – press q to quit", img)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            print(f"saved frame @ {timestamp}")
+        except ValueError:                                         # CRC hiccup – ignore
+            print("CRC error, skipping this frame")
 
-    except ValueError:                                        # sporadic CRC hiccup – just retry
-        continue
+        # 4) throttle to one capture every ~3 s (1 s capture + 2 s wait)
+        time.sleep(2)
 
-cv2.destroyAllWindows()
+except KeyboardInterrupt:
+    print("\nStopped by user – Excel file is up-to-date.")
