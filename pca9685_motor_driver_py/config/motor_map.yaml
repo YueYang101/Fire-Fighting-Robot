@@ -1,8 +1,5 @@
 motor_driver:
   ros__parameters:
-    motor_map:
-      0: [0,1]   # Right-rear  – speed CH0, dir CH1
-      1: [2,3]   # Right-front
-      2: [4,7]   # Left-front
-      3: [5,6]   # Left-rear
+    #       RR        RF        LF        LR
+    motor_map: [0,1,   2,3,     4,7,     5,6]
     pwm_frequency: 100
