@@ -1,0 +1,8 @@
+# --- Python -------------------------------------------------
+__pycache__/
+*.py[cod]
+
+# --- Virtual environments ----------------------------------
+backend/venv/
+scripts/venv/
+venv/
