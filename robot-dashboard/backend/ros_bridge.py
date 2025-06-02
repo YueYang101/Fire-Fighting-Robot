@@ -67,10 +67,10 @@ class ROSBridgeConnection:
         Returns:
             Tuple[bool, Dict]: (success, response_data)
         """
-        if not self._connection:
-            return False, {"error": "Not connected to rosbridge"}
-        
         try:
+            # Try to create a new connection for each call to avoid broken pipe
+            ws = create_connection(self.url, timeout=5)
+            
             # Prepare service call message
             request = {
                 "op": "call_service",
@@ -82,11 +82,14 @@ class ROSBridgeConnection:
                 request["id"] = service_id
             
             # Send request
-            self._connection.send(json.dumps(request))
+            ws.send(json.dumps(request))
             
             # Get response
-            response = self._connection.recv()
+            response = ws.recv()
             response_data = json.loads(response)
+            
+            # Close connection
+            ws.close()
             
             logger.debug(f"Service call response: {response_data}")
             return True, response_data
@@ -129,13 +132,41 @@ class MotorController:
     
     @staticmethod
     def percent_to_pwm(percent: float) -> int:
-        """Convert percentage (0-100) to PWM value (0-65535)"""
-        return int((percent / 100.0) * 65535)
+        """
+        Convert percentage (0-100) to PWM value (0-65535)
+        
+        IMPORTANT: PWM is INVERTED for forward/backward commands!
+        - 0% speed → PWM 65535 (motor stopped)
+        - 100% speed → PWM 0 (motor full speed)
+        
+        Note: The "brake" direction handles PWM differently and always uses PWM 0
+        
+        This inversion is specific to how the PCA9685 motor controller
+        interprets PWM signals for forward/backward motion.
+        """
+        # Ensure percent is within bounds
+        percent = max(0, min(100, percent))
+        
+        # INVERTED PWM calculation for forward/backward
+        # 0% → 65535, 100% → 0
+        pwm = int((1 - percent / 100.0) * 65535)
+        
+        logger.debug(f"Converting {percent}% to INVERTED PWM: {pwm}")
+        return pwm
     
     @staticmethod
     def pwm_to_percent(pwm: int) -> float:
-        """Convert PWM value (0-65535) to percentage (0-100)"""
-        return round((pwm / 65535.0) * 100, 1)
+        """
+        Convert PWM value (0-65535) to percentage (0-100)
+        
+        IMPORTANT: PWM is INVERTED for this motor controller!
+        - PWM 0 = 100% speed
+        - PWM 65535 = 0% speed
+        """
+        # INVERTED calculation
+        # Original: return round((pwm / 65535.0) * 100, 1)
+        # Inverted: PWM 0 → 100%, PWM 65535 → 0%
+        return round((1 - pwm / 65535.0) * 100, 1)
     
     def set_motor(self, motor_id: int, direction: str, speed_percent: float) -> Dict[str, Any]:
         """
@@ -169,22 +200,21 @@ class MotorController:
             }
         
         # Convert to PWM
-        speed_pwm = self.percent_to_pwm(speed_percent) if direction != "brake" else 0
+        if direction == "brake":
+            # Brake always uses PWM 0 (this was working correctly before)
+            speed_pwm = 0
+        else:
+            # For forward/backward, use INVERTED PWM: 0% = PWM 65535, 100% = PWM 0
+            speed_pwm = self.percent_to_pwm(speed_percent)
         
-        # Ensure connection
-        if not self.ros_bridge.is_connected():
-            if not self.ros_bridge.connect():
-                return {
-                    "success": False,
-                    "error": "Failed to connect to rosbridge"
-                }
-        
-        # Call ROS service
+        # Call ROS service (connection is handled in call_service)
         service_args = {
             "motor_id": motor_id,
             "direction": direction,
             "speed": speed_pwm
         }
+        
+        logger.info(f"Sending to ROS - Motor: {motor_id}, Direction: {direction}, Speed: {speed_percent}% (PWM: {speed_pwm})")
         
         success, response = self.ros_bridge.call_service(
             "/set_motor", 
@@ -227,6 +257,7 @@ class MotorController:
         results = []
         
         for motor_id in range(4):
+            # Brake with speed 0 (this was working correctly before)
             result = self.set_motor(motor_id, "brake", 0)
             results.append(result)
         
