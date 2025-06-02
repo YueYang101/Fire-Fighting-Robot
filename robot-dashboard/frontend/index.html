@@ -6,36 +6,42 @@
 
   <!-- Tailwind for quick styling -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Local tweaks (cache-busted) -->
+  <link rel="stylesheet" href="styles.css?v=20250602" />
 </head>
 
 <body class="min-h-screen flex flex-col bg-gray-100">
+
+  <!-- ─────── Top bar ─────────────────────────────────────────────── -->
   <header class="bg-indigo-600 text-white text-xl font-semibold p-4 shadow">
     ROS 2 Motor Dashboard
   </header>
 
+  <!-- ─────── Main two-column layout ──────────────────────────────── -->
   <main class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
 
-    <!-- ─────── System power + control panel ───────────────────────────── -->
+    <!-- ───────────────────────── Left: control panel ─────────────── -->
     <section id="control" class="p-6 bg-white rounded-2xl shadow space-y-6">
 
-      <!-- Power toggle -->
+      <!-- System power toggle -->
       <div class="flex items-center space-x-3">
-        <label for="powerToggle" class="flex items-center cursor-pointer">
-          <span class="mr-3 font-semibold">System power</span>
-          <input type="checkbox" id="powerToggle" class="sr-only peer">
+        <span class="font-semibold">System power</span>
+
+        <label class="relative inline-block w-11 h-6 cursor-pointer">
+          <input id="powerToggle" type="checkbox" class="sr-only peer">
           <div
-            class="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-indigo-300
-                   rounded-full peer peer-checked:bg-indigo-600
-                   after:content-[''] after:absolute after:top-0.5 after:left-[2px]
-                   after:bg-white after:rounded-full after:h-5 after:w-5
-                   after:transition-all peer-checked:after:translate-x-full">
-          </div>
+            class="w-full h-full bg-gray-200 rounded-full
+                   peer-checked:bg-indigo-600 transition-colors"></div>
+          <div
+            class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full
+                   transition-transform peer-checked:translate-x-full"></div>
         </label>
+
         <span id="powerLabel" class="text-sm">OFF</span>
       </div>
 
-      <!-- Per-motor command -->
+      <!-- Per-motor command block -->
       <div id="motorControls" class="space-y-4 opacity-50 pointer-events-none">
 
         <div class="space-y-2">
@@ -66,20 +72,32 @@
         </button>
       </div>
 
-      <!-- Log -->
+      <!-- Command / error log (left column) -->
       <pre id="commandLog"
            class="text-xs bg-gray-100 p-2 rounded h-40 overflow-y-auto"></pre>
     </section>
 
-    <!-- ─────── Live motor state panel ────────────────────────────────── -->
-    <section id="monitor" class="p-6 bg-white rounded-2xl shadow">
-      <h2 class="text-lg font-semibold mb-4">Live motor state</h2>
-      <div id="statusContainer" class="space-y-2"></div>
+    <!-- ───────────────────────── Right: motor state + logs ────────── -->
+    <section id="monitor" class="p-6 bg-white rounded-2xl shadow flex flex-col gap-4">
+
+      <!-- Live motor state -->
+      <div>
+        <h2 class="text-lg font-semibold mb-2">Live motor state</h2>
+        <div id="statusContainer" class="space-y-2"></div>
+      </div>
+
+      <!-- Backend log stream -->
+      <div class="flex-1 flex flex-col">
+        <h2 class="text-lg font-semibold mb-2">Backend logs</h2>
+        <pre id="logContainer"
+             class="flex-1 text-xs bg-gray-50 p-2 rounded overflow-y-auto"></pre>
+      </div>
     </section>
   </main>
 
   <footer class="text-center p-2 text-gray-500 text-sm">© 2025</footer>
 
-  <script src="motor.js"></script>
+  <!-- Local JS (cache-busted) -->
+  <script src="motor.js?v=20250602"></script>
 </body>
 </html>
