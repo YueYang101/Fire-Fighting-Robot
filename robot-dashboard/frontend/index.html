@@ -4,15 +4,12 @@
   <meta charset="utf-8" />
   <title>ROS 2 Motor Dashboard</title>
 
-  <!-- Tailwind for quick styling -->
+  <!-- Tailwind (for quick styling only – remove or replace in production) -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Local tweaks (cache-busted) -->
-  <link rel="stylesheet" href="styles.css?v=20250602" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body class="min-h-screen flex flex-col bg-gray-100">
-
   <!-- ─────── Top bar ─────────────────────────────────────────────── -->
   <header class="bg-indigo-600 text-white text-xl font-semibold p-4 shadow">
     ROS 2 Motor Dashboard
@@ -43,7 +40,6 @@
 
       <!-- Per-motor command block -->
       <div id="motorControls" class="space-y-4 opacity-50 pointer-events-none">
-
         <div class="space-y-2">
           <label class="block">Motor
             <select id="motorSelect" class="border p-1 rounded ml-2">
@@ -86,7 +82,7 @@
         <div id="statusContainer" class="space-y-2"></div>
       </div>
 
-      <!-- Backend log stream -->
+      <!-- Backend log stream (NEW) -->
       <div class="flex-1 flex flex-col">
         <h2 class="text-lg font-semibold mb-2">Backend logs</h2>
         <pre id="logContainer"
@@ -97,7 +93,6 @@
 
   <footer class="text-center p-2 text-gray-500 text-sm">© 2025</footer>
 
-  <!-- Local JS (cache-busted) -->
-  <script src="motor.js?v=20250602"></script>
+  <script src="motor.js"></script>
 </body>
 </html>
