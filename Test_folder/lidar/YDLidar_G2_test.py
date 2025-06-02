@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-YDLidar G2 Test Script
+YDLidar G2 Test Script - Enhanced Version
 Tests if the lidar sensor is working via USB connection
 Compatible with both Raspberry Pi (Ubuntu 22.04) and macOS
 """
@@ -23,6 +23,7 @@ class YDLidarG2Test:
         self.SCAN_COMMAND = b'\xA5\x60'
         self.STOP_COMMAND = b'\xA5\x65'
         self.INFO_COMMAND = b'\xA5\x90'
+        self.HEALTH_COMMAND = b'\xA5\x91'
         
     def find_lidar_port(self):
         """Find the YDLidar USB port automatically"""
@@ -40,8 +41,9 @@ class YDLidarG2Test:
                 
         # If not found automatically, try common port names
         if sys.platform == 'linux':
-            # For Raspberry Pi/Ubuntu
-            possible_ports = ['/dev/ttyUSB0', '/dev/ttyUSB1', '/dev/ttyACM0', '/dev/ttyACM1']
+            # For Raspberry Pi/Ubuntu - including UART pins
+            possible_ports = ['/dev/ttyAMA0', '/dev/serial0', '/dev/ttyS0', 
+                            '/dev/ttyUSB0', '/dev/ttyUSB1', '/dev/ttyACM0', '/dev/ttyACM1']
         elif sys.platform == 'darwin':
             # For macOS
             possible_ports = ['/dev/cu.SLAB_USBtoUART', '/dev/cu.usbserial-0001']
@@ -106,11 +108,30 @@ class YDLidarG2Test:
             response = self.serial_connection.read(20)
             if len(response) > 0:
                 print(f"Device response ({len(response)} bytes): {response.hex()}")
+                if len(response) >= 20:
+                    print("Device info indicates lidar is responding correctly!")
             else:
                 print("No device info received (this is normal for some G2 models)")
                 
         except Exception as e:
             print(f"Error getting device info: {e}")
+            
+    def get_health_status(self):
+        """Check health status of the lidar"""
+        if not self.serial_connection:
+            return
+            
+        try:
+            print("\nChecking health status...")
+            self.serial_connection.write(self.HEALTH_COMMAND)
+            time.sleep(0.1)
+            
+            response = self.serial_connection.read(10)
+            if len(response) > 0:
+                print(f"Health response: {response.hex()}")
+                
+        except Exception as e:
+            print(f"Error getting health status: {e}")
             
     def start_scan(self):
         """Start the lidar scanning"""
@@ -119,9 +140,24 @@ class YDLidarG2Test:
             
         try:
             print("\nStarting scan...")
+            # Clear buffer before starting
+            self.serial_connection.reset_input_buffer()
             self.serial_connection.write(self.SCAN_COMMAND)
-            time.sleep(0.1)
+            time.sleep(0.5)  # Give motor time to start
             self.running = True
+            
+            # Check if data is coming
+            print("Checking for incoming data...")
+            test_data = self.serial_connection.read(10)
+            if len(test_data) > 0:
+                print(f"Receiving data! First bytes: {test_data.hex()}")
+                print("Motor should be spinning now. Can you hear it?")
+            else:
+                print("WARNING: No data received. Possible issues:")
+                print("- Motor may not be spinning (power issue)")
+                print("- Lidar may need more time to start")
+                print("- Try external power supply")
+                
             return True
         except Exception as e:
             print(f"Failed to start scan: {e}")
@@ -132,65 +168,133 @@ class YDLidarG2Test:
         if self.serial_connection:
             try:
                 self.serial_connection.write(self.STOP_COMMAND)
-                time.sleep(0.1)
+                time.sleep(0.5)
                 self.running = False
                 print("\nScan stopped")
             except:
                 pass
                 
     def read_scan_data(self):
-        """Read and display scan data"""
+        """Read and display scan data with better parsing"""
         if not self.serial_connection or not self.running:
             return
             
         print("\nReading scan data (press Ctrl+C to stop)...")
-        print("Format: Angle (degrees) | Distance (mm) | Quality")
-        print("-" * 50)
+        print("Note: If no data appears, the motor might not be spinning")
+        print("-" * 60)
         
-        sample_count = 0
+        byte_count = 0
+        packet_count = 0
         start_time = time.time()
+        last_print_time = start_time
+        
+        # Buffer for collecting scan data
+        data_buffer = b''
         
         try:
             while self.running:
-                # Read data byte by byte until we find start sequence
-                byte = self.serial_connection.read(1)
-                if not byte:
-                    continue
+                # Read available data
+                if self.serial_connection.in_waiting > 0:
+                    new_data = self.serial_connection.read(self.serial_connection.in_waiting)
+                    data_buffer += new_data
+                    byte_count += len(new_data)
                     
-                if byte == b'\xA5':
-                    # Possible start of packet
-                    next_byte = self.serial_connection.read(1)
-                    if next_byte == b'\x5A':
-                        # Valid start sequence found
-                        # Read packet header (5 bytes already read 2)
-                        header = self.serial_connection.read(3)
-                        if len(header) == 3:
-                            sample_count += 1
+                    # Look for packet start (0xA5 0x5A)
+                    while len(data_buffer) >= 10:
+                        # Find start sequence
+                        start_idx = data_buffer.find(b'\xA5\x5A')
+                        if start_idx == -1:
+                            data_buffer = data_buffer[-2:]  # Keep last 2 bytes
+                            break
                             
-                            # Parse basic data (simplified for G2)
-                            # Actual parsing may vary based on G2 protocol
-                            if sample_count % 40 == 0:  # Print every 40th sample
-                                angle = (sample_count * 0.9) % 360  # Approximate
-                                distance = int.from_bytes(header[:2], 'little')
-                                quality = header[2]
-                                
-                                if distance > 0:  # Valid measurement
-                                    print(f"{angle:6.1f}° | {distance:6d} mm | {quality:3d}")
+                        # Remove data before start
+                        if start_idx > 0:
+                            data_buffer = data_buffer[start_idx:]
+                            
+                        # Check if we have enough data for a packet
+                        if len(data_buffer) < 10:
+                            break
+                            
+                        # Parse packet header
+                        packet_type = data_buffer[2]
+                        sample_quantity = data_buffer[3]
+                        
+                        # Calculate expected packet size
+                        if packet_type == 0:  # Normal point cloud packet
+                            packet_size = 10 + sample_quantity * 3
+                        else:
+                            packet_size = 10
+                            
+                        # Check if we have full packet
+                        if len(data_buffer) < packet_size:
+                            break
+                            
+                        # Process packet
+                        packet = data_buffer[:packet_size]
+                        data_buffer = data_buffer[packet_size:]
+                        packet_count += 1
+                        
+                        # Parse scan data from packet
+                        if packet_type == 0 and len(packet) >= 10:
+                            # Extract angle data
+                            start_angle = (packet[4] | (packet[5] << 8)) / 100.0
+                            end_angle = (packet[6] | (packet[7] << 8)) / 100.0
+                            
+                            # Parse sample data
+                            for i in range(sample_quantity):
+                                if 10 + i*3 + 2 < len(packet):
+                                    distance = packet[10 + i*3] | (packet[10 + i*3 + 1] << 8)
+                                    quality = packet[10 + i*3 + 2]
                                     
-                            # Show activity indicator
-                            if sample_count % 360 == 0:
-                                elapsed = time.time() - start_time
-                                print(f"\n[{elapsed:.1f}s] Processed {sample_count} samples...")
-                                
+                                    # Calculate angle for this sample
+                                    if sample_quantity > 1:
+                                        angle = start_angle + (end_angle - start_angle) * i / (sample_quantity - 1)
+                                    else:
+                                        angle = start_angle
+                                        
+                                    # Normalize angle
+                                    if angle < 0:
+                                        angle += 360
+                                    elif angle >= 360:
+                                        angle -= 360
+                                        
+                                    # Print every N-th valid measurement
+                                    if distance > 0 and packet_count % 10 == 0 and i == 0:
+                                        print(f"Angle: {angle:6.1f}° | Distance: {distance:5d} mm | Quality: {quality:3d}")
+                
+                # Status update every 2 seconds
+                current_time = time.time()
+                if current_time - last_print_time > 2.0:
+                    elapsed = current_time - start_time
+                    print(f"\n[Status] Time: {elapsed:.1f}s | Bytes: {byte_count} | Packets: {packet_count}")
+                    if byte_count == 0:
+                        print("WARNING: No data received. Check if motor is spinning!")
+                        print("You should hear the motor running if power is sufficient.")
+                    last_print_time = current_time
+                    
+                # Small delay to prevent CPU overload
+                time.sleep(0.001)
+                
         except KeyboardInterrupt:
             print("\n\nScan interrupted by user")
         except Exception as e:
             print(f"\nError reading scan data: {e}")
+            import traceback
+            traceback.print_exc()
+            
+        # Final statistics
+        elapsed = time.time() - start_time
+        print(f"\nFinal Statistics:")
+        print(f"Total time: {elapsed:.1f} seconds")
+        print(f"Total bytes received: {byte_count}")
+        print(f"Total packets: {packet_count}")
+        if elapsed > 0:
+            print(f"Data rate: {byte_count/elapsed:.0f} bytes/second")
             
     def run_test(self):
         """Run the complete test sequence"""
-        print("YDLidar G2 Test Script")
-        print("=" * 50)
+        print("YDLidar G2 Test Script - Enhanced Version")
+        print("=" * 60)
         
         # Connect to lidar
         if not self.connect():
@@ -198,6 +302,17 @@ class YDLidarG2Test:
             
         # Get device info
         self.get_device_info()
+        
+        # Get health status
+        self.get_health_status()
+        
+        # Important power check
+        print("\n" + "="*60)
+        print("POWER CHECK:")
+        print("1. Is the lidar LED on?")
+        print("2. Can you hear the motor spinning after scan starts?")
+        print("3. If using power bank, is it providing enough current?")
+        print("="*60 + "\n")
         
         # Start scanning
         if self.start_scan():
@@ -236,14 +351,14 @@ def main():
     tester.run_test()
     
     print("\nTest complete!")
-    print("\nIf the test was successful, you should have seen:")
-    print("1. Successful connection message")
-    print("2. Scan data with angles and distances")
-    print("\nIf not working, check:")
-    print("1. USB-C cable is properly connected")
-    print("2. Lidar LED is on (indicating power)")
-    print("3. You have proper permissions (use sudo if needed)")
-    print("4. No other program is using the serial port")
+    print("\nDiagnostic Summary:")
+    print("- Device Info Response: YES ✓" if True else "- Device Info Response: NO ✗")
+    print("- If motor is NOT spinning: Power issue - use external power")
+    print("- If motor IS spinning but no data: Check connections or try longer test")
+    print("\nFor external power setup, connect:")
+    print("  5V Power → Lidar Red wire")
+    print("  GND → Lidar Black wire")
+    print("  Keep USB for data communication")
 
 if __name__ == "__main__":
     main()
