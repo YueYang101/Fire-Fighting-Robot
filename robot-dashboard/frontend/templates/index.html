@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROS 2 Motor Control Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid #333;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 300;
+            letter-spacing: 2px;
+            background: linear-gradient(45deg, #00ff88, #00aaff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff3333;
+            box-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .status-indicator.connected {
+            background: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .main-container {
+            flex: 1;
+            padding: 40px 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .motor-card {
+            background: linear-gradient(145deg, #1a1a1a, #252525);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            min-height: 350px;
+        }
+
+        .motor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+        }
+
+        .motor-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .motor-title {
+            font-size: 1.5em;
+            font-weight: 500;
+            color: #00aaff;
+        }
+
+        .motor-status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            background: #333;
+            color: #888;
+            transition: all 0.3s ease;
+        }
+
+        .motor-status.active {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+
+        .direction-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .direction-btn {
+            padding: 12px 8px;
+            border: none;
+            border-radius: 10px;
+            background: #2a2a2a;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .direction-btn:hover {
+            background: #3a3a3a;
+            transform: translateY(-2px);
+        }
+
+        .direction-btn.active {
+            background: linear-gradient(135deg, #00aaff, #0088cc);
+            box-shadow: 0 5px 20px rgba(0, 170, 255, 0.4);
+        }
+
+        .direction-btn.brake.active {
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+            box-shadow: 0 5px 20px rgba(255, 68, 68, 0.4);
+        }
+
+        .speed-control {
+            margin-top: auto;
+        }
+
+        .speed-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            color: #aaa;
+        }
+
+        .speed-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #00ff88;
+            min-width: 80px;
+            text-align: right;
+        }
+
+        .speed-slider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #2a2a2a;
+            border-radius: 5px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .speed-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.7);
+        }
+
+        .speed-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .emergency-stop {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff0000, #cc0000);
+            border: 3px solid #ff4444;
+            color: white;
+            font-size: 1.2em;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(255, 0, 0, 0.5);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            z-index: 1000;
+        }
+
+        .emergency-stop:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 40px rgba(255, 0, 0, 0.7);
+        }
+
+        .emergency-stop:active {
+            transform: scale(0.95);
+        }
+
+        .log-panel {
+            background: #1a1a1a;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 30px;
+            border: 1px solid #333;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 5px;
+            background: #252525;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #aaa;
+            border-left: 3px solid #444;
+        }
+
+        .log-entry.error {
+            border-left-color: #ff4444;
+            color: #ff6666;
+        }
+
+        .log-entry.success {
+            border-left-color: #00ff88;
+            color: #00ff88;
+        }
+
+        /* Responsive design */
+        @media (max-width: 1600px) {
+            .controls-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .emergency-stop {
+                width: 80px;
+                height: 80px;
+                font-size: 1em;
+                bottom: 20px;
+                right: 20px;
+            }
+
+            .direction-controls {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+        }
+
+        /* For ultra-wide displays */
+        @media (min-width: 2000px) {
+            .main-container {
+                max-width: 1900px;
+            }
+            
+            .motor-card {
+                padding: 35px;
+                min-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ROS 2 Motor Control Panel</h1>
+        <div class="status-bar">
+            <span>Connection Status:</span>
+            <div class="status-indicator" id="connectionStatus"></div>
+            <span id="statusText">Disconnected</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="controls-grid">
+            <!-- Motor 0 -->
+            <div class="motor-card" data-motor="0">
+                <div class="motor-header">
+                    <h2 class="motor-title">Motor 0</h2>
+                    <span class="motor-status">IDLE</span>
+                </div>
+                <div class="direction-controls">
+                    <button class="direction-btn" data-direction="forward">Forward</button>
+                    <button class="direction-btn" data-direction="backward">Backward</button>
+                    <button class="direction-btn brake" data-direction="brake">Brake</button>
+                </div>
+                <div class="speed-control">
+                    <div class="speed-label">
+                        <span>Speed Control</span>
+                        <span class="speed-value">0%</span>
+                    </div>
+                    <input type="range" class="speed-slider" min="0" max="100" value="0">
+                </div>
+            </div>
+
+            <!-- Motor 1 -->
+            <div class="motor-card" data-motor="1">
+                <div class="motor-header">
+                    <h2 class="motor-title">Motor 1</h2>
+                    <span class="motor-status">IDLE</span>
+                </div>
+                <div class="direction-controls">
+                    <button class="direction-btn" data-direction="forward">Forward</button>
+                    <button class="direction-btn" data-direction="backward">Backward</button>
+                    <button class="direction-btn brake" data-direction="brake">Brake</button>
+                </div>
+                <div class="speed-control">
+                    <div class="speed-label">
+                        <span>Speed Control</span>
+                        <span class="speed-value">0%</span>
+                    </div>
+                    <input type="range" class="speed-slider" min="0" max="100" value="0">
+                </div>
+            </div>
+
+            <!-- Motor 2 -->
+            <div class="motor-card" data-motor="2">
+                <div class="motor-header">
+                    <h2 class="motor-title">Motor 2</h2>
+                    <span class="motor-status">IDLE</span>
+                </div>
+                <div class="direction-controls">
+                    <button class="direction-btn" data-direction="forward">Forward</button>
+                    <button class="direction-btn" data-direction="backward">Backward</button>
+                    <button class="direction-btn brake" data-direction="brake">Brake</button>
+                </div>
+                <div class="speed-control">
+                    <div class="speed-label">
+                        <span>Speed Control</span>
+                        <span class="speed-value">0%</span>
+                    </div>
+                    <input type="range" class="speed-slider" min="0" max="100" value="0">
+                </div>
+            </div>
+
+            <!-- Motor 3 -->
+            <div class="motor-card" data-motor="3">
+                <div class="motor-header">
+                    <h2 class="motor-title">Motor 3</h2>
+                    <span class="motor-status">IDLE</span>
+                </div>
+                <div class="direction-controls">
+                    <button class="direction-btn" data-direction="forward">Forward</button>
+                    <button class="direction-btn" data-direction="backward">Backward</button>
+                    <button class="direction-btn brake" data-direction="brake">Brake</button>
+                </div>
+                <div class="speed-control">
+                    <div class="speed-label">
+                        <span>Speed Control</span>
+                        <span class="speed-value">0%</span>
+                    </div>
+                    <input type="range" class="speed-slider" min="0" max="100" value="0">
+                </div>
+            </div>
+        </div>
+
+        <div class="log-panel">
+            <h3 style="margin-bottom: 10px; color: #888;">Activity Log</h3>
+            <div id="logContainer"></div>
+        </div>
+    </div>
+
+    <button class="emergency-stop" id="emergencyStop">STOP<br>ALL</button>
+
+    <script>
+        // Motor control state
+        const motorStates = {
+            0: { direction: 'brake', speed: 0 },
+            1: { direction: 'brake', speed: 0 },
+            2: { direction: 'brake', speed: 0 },
+            3: { direction: 'brake', speed: 0 }
+        };
+
+        // Add log entry
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContainer.insertBefore(entry, logContainer.firstChild);
+            
+            // Keep only last 10 entries
+            while (logContainer.children.length > 10) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+
+        // Check connection status
+        async function checkConnection() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                const indicator = document.getElementById('connectionStatus');
+                const statusText = document.getElementById('statusText');
+                
+                if (data.connected) {
+                    indicator.classList.add('connected');
+                    statusText.textContent = 'Connected';
+                } else {
+                    indicator.classList.remove('connected');
+                    statusText.textContent = 'Disconnected';
+                }
+            } catch (error) {
+                const indicator = document.getElementById('connectionStatus');
+                const statusText = document.getElementById('statusText');
+                indicator.classList.remove('connected');
+                statusText.textContent = 'Error';
+            }
+        }
+
+        // Send motor command
+        async function sendMotorCommand(motorId, direction, speed) {
+            try {
+                const response = await fetch(`/api/motor/${motorId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        direction: direction,
+                        speed: speed
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`Motor ${motorId}: ${direction} at ${speed}%`, 'success');
+                    return true;
+                } else {
+                    addLog(`Motor ${motorId} error: ${data.error}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                addLog(`Motor ${motorId} error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Update motor UI
+        function updateMotorUI(motorId) {
+            const motorCard = document.querySelector(`[data-motor="${motorId}"]`);
+            const state = motorStates[motorId];
+            
+            // Update direction buttons
+            const directionBtns = motorCard.querySelectorAll('.direction-btn');
+            directionBtns.forEach(btn => {
+                if (btn.dataset.direction === state.direction) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Update status
+            const status = motorCard.querySelector('.motor-status');
+            if (state.direction === 'brake') {
+                status.textContent = 'BRAKE';
+                status.classList.remove('active');
+            } else {
+                status.textContent = state.direction.toUpperCase();
+                status.classList.add('active');
+            }
+            
+            // Update speed display
+            const speedValue = motorCard.querySelector('.speed-value');
+            speedValue.textContent = `${state.speed}%`;
+            
+            // Update slider
+            const slider = motorCard.querySelector('.speed-slider');
+            slider.value = state.speed;
+            
+            // Update slider background to show progress
+            const percentage = state.speed / 100;
+            slider.style.background = `linear-gradient(to right, #00ff88 ${percentage * 100}%, #2a2a2a ${percentage * 100}%)`;
+        }
+
+        // Initialize motor controls
+        document.querySelectorAll('.motor-card').forEach(motorCard => {
+            const motorId = parseInt(motorCard.dataset.motor);
+            
+            // Direction buttons
+            motorCard.querySelectorAll('.direction-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const direction = btn.dataset.direction;
+                    motorStates[motorId].direction = direction;
+                    
+                    // If brake, set speed to 0
+                    if (direction === 'brake') {
+                        motorStates[motorId].speed = 0;
+                    }
+                    
+                    updateMotorUI(motorId);
+                    await sendMotorCommand(motorId, direction, motorStates[motorId].speed);
+                });
+            });
+            
+            // Speed slider
+            const slider = motorCard.querySelector('.speed-slider');
+            slider.addEventListener('input', async (e) => {
+                // Get the raw slider value (0-100)
+                const sliderValue = parseInt(e.target.value);
+                
+                // IMPORTANT: Use the slider value directly without reversing
+                motorStates[motorId].speed = sliderValue;
+                
+                // Update UI immediately
+                updateMotorUI(motorId);
+                
+                // If motor is not in brake mode, send command
+                if (motorStates[motorId].direction !== 'brake') {
+                    await sendMotorCommand(motorId, motorStates[motorId].direction, sliderValue);
+                }
+            });
+        });
+
+        // Emergency stop button
+        document.getElementById('emergencyStop').addEventListener('click', async () => {
+            addLog('EMERGENCY STOP ACTIVATED!', 'error');
+            
+            try {
+                const response = await fetch('/api/motors/stop', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Reset all motor states
+                    for (let i = 0; i < 4; i++) {
+                        motorStates[i] = { direction: 'brake', speed: 0 };
+                        updateMotorUI(i);
+                    }
+                    addLog('All motors stopped', 'success');
+                } else {
+                    addLog('Emergency stop failed!', 'error');
+                }
+            } catch (error) {
+                addLog(`Emergency stop error: ${error.message}`, 'error');
+            }
+        });
+
+        // Initial setup
+        checkConnection();
+        setInterval(checkConnection, 5000); // Check connection every 5 seconds
+        
+        // Initialize UI
+        for (let i = 0; i < 4; i++) {
+            updateMotorUI(i);
+        }
+        
+        addLog('Motor control panel initialized', 'success');
+    </script>
+</body>
+</html>
