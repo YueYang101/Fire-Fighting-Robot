@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lidar Sensor - Robot Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #333;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 300;
+            letter-spacing: 2px;
+            background: linear-gradient(45deg, #00ff88, #00aaff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-button {
+            padding: 10px 20px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 10px;
+            color: #fff;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .back-button:hover {
+            background: #3a3a3a;
+            transform: translateY(-2px);
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 10px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff3333;
+            box-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .status-indicator.connected {
+            background: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .main-container {
+            flex: 1;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-height: calc(100vh - 200px);
+        }
+
+        .visualization-panel {
+            background: #1a1a1a;
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 1.5em;
+            color: #00ff88;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: #0a0a0a;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .controls {
+            background: #1a1a1a;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #333;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .control-button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            background: #2a2a2a;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1em;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .control-button:hover {
+            background: #3a3a3a;
+            transform: translateY(-2px);
+        }
+
+        .control-button.active {
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
+        }
+
+        .control-button.danger {
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+        }
+
+        .info-panel {
+            background: #1a1a1a;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #333;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .info-item {
+            background: #252525;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+
+        .info-label {
+            color: #888;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.3em;
+            font-weight: 500;
+            color: #00ff88;
+        }
+
+        .movement-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 200px;
+            margin: 20px auto;
+        }
+
+        .move-btn {
+            padding: 15px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 10px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 1.5em;
+            transition: all 0.2s ease;
+        }
+
+        .move-btn:hover {
+            background: #3a3a3a;
+            transform: scale(1.1);
+        }
+
+        .move-btn:active {
+            background: #00ff88;
+            transform: scale(0.95);
+        }
+
+        .move-btn:nth-child(2) { grid-column: 2; }
+        .move-btn:nth-child(4) { grid-column: 1; }
+        .move-btn:nth-child(5) { grid-column: 2; }
+        .move-btn:nth-child(6) { grid-column: 3; }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>Lidar Sensor Visualization</h1>
+        <a href="/" class="back-button">← Back to Dashboard</a>
+    </div>
+
+    <div class="status-bar">
+        <div class="status-item">
+            <span>Lidar Status:</span>
+            <div class="status-indicator" id="lidarStatus"></div>
+            <span id="lidarStatusText">Disconnected</span>
+        </div>
+        <div class="status-item">
+            <span>Data Rate:</span>
+            <span id="dataRate">0 Hz</span>
+        </div>
+        <div class="status-item">
+            <span>Points:</span>
+            <span id="pointCount">0</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Polar View -->
+        <div class="visualization-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Live Scan - Polar View</h2>
+                <span id="polarFPS">0 FPS</span>
+            </div>
+            <div class="canvas-container">
+                <canvas id="polarCanvas"></canvas>
+            </div>
+        </div>
+
+        <!-- Occupancy Map -->
+        <div class="visualization-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Occupancy Map</h2>
+                <span id="mapFPS">0 FPS</span>
+            </div>
+            <div class="canvas-container">
+                <canvas id="mapCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="control-button" id="startBtn" onclick="startLidar()">Start Scan</button>
+        <button class="control-button danger" id="stopBtn" onclick="stopLidar()" disabled>Stop Scan</button>
+        <button class="control-button" onclick="clearMap()">Clear Map</button>
+        <button class="control-button" onclick="saveMap()">Save Map</button>
+        <button class="control-button" id="followRobotBtn" onclick="toggleFollowRobot()">Follow Robot</button>
+        <button class="control-button" onclick="resetView()">Reset View</button>
+    </div>
+
+    <div class="info-panel">
+        <h3 style="color: #00ff88; margin-bottom: 15px;">Scan Information</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Min Distance</div>
+                <div class="info-value" id="minDistance">-</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Min Angle</div>
+                <div class="info-value" id="minAngle">-</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Obstacles</div>
+                <div class="info-value" id="obstacleCount">0</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Safe Directions</div>
+                <div class="info-value" id="safeDirections" style="font-size: 1em;">-</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <h3 style="color: #00ff88; margin-bottom: 15px; text-align: center;">Robot Movement (Simulation)</h3>
+        <div class="movement-controls">
+            <button class="move-btn" onclick="moveRobot('forward')">↑</button>
+            <button class="move-btn" onclick="moveRobot('left')">←</button>
+            <button class="move-btn" onclick="moveRobot('stop')">●</button>
+            <button class="move-btn" onclick="moveRobot('right')">→</button>
+            <button class="move-btn" onclick="moveRobot('backward')">↓</button>
+        </div>
+    </div>
+
+    <script>
+        // WebSocket connection
+        const socket = io();
+        
+        // Canvas contexts
+        const polarCanvas = document.getElementById('polarCanvas');
+        const polarCtx = polarCanvas.getContext('2d');
+        const mapCanvas = document.getElementById('mapCanvas');
+        const mapCtx = mapCanvas.getContext('2d');
+        
+        // State
+        let scanning = false;
+        let followRobot = true;
+        let latestScanData = null;
+        
+        // Map parameters
+        const MAP_SIZE = 100;  // 10m x 10m with 10cm resolution
+        const MAP_RESOLUTION = 0.1;  // meters per pixel
+        const occupancyMap = new Array(MAP_SIZE * MAP_SIZE).fill(0.5);  // Unknown = 0.5
+        
+        // Robot state
+        let robotX = MAP_SIZE / 2;
+        let robotY = MAP_SIZE / 2;
+        let robotTheta = 0;
+        const robotPath = [];
+        
+        // Performance monitoring
+        let polarFPS = 0;
+        let mapFPS = 0;
+        let lastPolarUpdate = Date.now();
+        let lastMapUpdate = Date.now();
+        let polarFrameCount = 0;
+        let mapFrameCount = 0;
+        let dataRate = 0;
+        let lastDataTime = Date.now();
+        let dataCount = 0;
+        
+        // Socket event handlers
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+        
+        socket.on('lidar_data', (data) => {
+            latestScanData = data;
+            updateVisualization(data);
+            
+            // Update data rate
+            dataCount++;
+            const now = Date.now();
+            if (now - lastDataTime > 1000) {
+                dataRate = dataCount;
+                dataCount = 0;
+                lastDataTime = now;
+                document.getElementById('dataRate').textContent = `${dataRate} Hz`;
+            }
+        });
+        
+        // Resize canvases
+        function resizeCanvases() {
+            const containers = document.querySelectorAll('.canvas-container');
+            containers.forEach((container, index) => {
+                const canvas = container.querySelector('canvas');
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+            });
+        }
+        
+        window.addEventListener('resize', resizeCanvases);
+        resizeCanvases();
+        
+        // Start/Stop lidar
+        async function startLidar() {
+            try {
+                const response = await fetch('/api/lidar/subscribe', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    scanning = true;
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    document.getElementById('lidarStatus').classList.add('connected');
+                    document.getElementById('lidarStatusText').textContent = 'Connected';
+                }
+            } catch (error) {
+                console.error('Failed to start lidar:', error);
+            }
+        }
+        
+        async function stopLidar() {
+            try {
+                const response = await fetch('/api/lidar/unsubscribe', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    scanning = false;
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    document.getElementById('lidarStatus').classList.remove('connected');
+                    document.getElementById('lidarStatusText').textContent = 'Disconnected';
+                }
+            } catch (error) {
+                console.error('Failed to stop lidar:', error);
+            }
+        }
+        
+        // Visualization functions
+        function updateVisualization(scanData) {
+            // Update info panel
+            document.getElementById('minDistance').textContent = `${scanData.min_distance.toFixed(2)}m`;
+            document.getElementById('minAngle').textContent = `${scanData.min_angle_deg.toFixed(1)}°`;
+            document.getElementById('obstacleCount').textContent = scanData.obstacle_count;
+            document.getElementById('safeDirections').textContent = scanData.safe_directions.join(', ') || 'None';
+            document.getElementById('pointCount').textContent = scanData.point_count;
+            
+            // Draw polar view
+            drawPolarView(scanData);
+            
+            // Update occupancy map
+            updateOccupancyMap(scanData);
+            drawMapView();
+        }
+        
+        function drawPolarView(scanData) {
+            const width = polarCanvas.width;
+            const height = polarCanvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const maxRadius = Math.min(width, height) / 2 - 20;
+            
+            // Clear canvas
+            polarCtx.fillStyle = '#0a0a0a';
+            polarCtx.fillRect(0, 0, width, height);
+            
+            // Draw grid
+            polarCtx.strokeStyle = '#333';
+            polarCtx.lineWidth = 1;
+            
+            // Concentric circles
+            for (let r = 1; r <= 4; r++) {
+                polarCtx.beginPath();
+                polarCtx.arc(centerX, centerY, (r / 4) * maxRadius, 0, 2 * Math.PI);
+                polarCtx.stroke();
+                
+                // Distance labels
+                polarCtx.fillStyle = '#666';
+                polarCtx.font = '12px Arial';
+                polarCtx.fillText(`${r}m`, centerX + 5, centerY - (r / 4) * maxRadius + 5);
+            }
+            
+            // Radial lines
+            for (let angle = 0; angle < 360; angle += 30) {
+                const rad = angle * Math.PI / 180;
+                polarCtx.beginPath();
+                polarCtx.moveTo(centerX, centerY);
+                polarCtx.lineTo(
+                    centerX + maxRadius * Math.cos(rad),
+                    centerY - maxRadius * Math.sin(rad)
+                );
+                polarCtx.stroke();
+            }
+            
+            // Draw scan points
+            if (scanData.points) {
+                polarCtx.fillStyle = '#00ff88';
+                scanData.points.forEach(point => {
+                    if (point.r < 4.0) {  // Only show points within 4m
+                        const x = centerX + (point.r / 4) * maxRadius * Math.cos(point.theta);
+                        const y = centerY - (point.r / 4) * maxRadius * Math.sin(point.theta);
+                        
+                        polarCtx.beginPath();
+                        polarCtx.arc(x, y, 2, 0, 2 * Math.PI);
+                        polarCtx.fill();
+                    }
+                });
+            }
+            
+            // Draw obstacles
+            polarCtx.fillStyle = '#ff4444';
+            scanData.obstacles.forEach(obstacle => {
+                const x = centerX + (obstacle.distance / 4) * maxRadius * Math.cos(obstacle.angle);
+                const y = centerY - (obstacle.distance / 4) * maxRadius * Math.sin(obstacle.angle);
+                
+                polarCtx.beginPath();
+                polarCtx.arc(x, y, 4, 0, 2 * Math.PI);
+                polarCtx.fill();
+            });
+            
+            // Draw robot center
+            polarCtx.fillStyle = '#00aaff';
+            polarCtx.beginPath();
+            polarCtx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
+            polarCtx.fill();
+            
+            // Update FPS
+            polarFrameCount++;
+            const now = Date.now();
+            if (now - lastPolarUpdate > 1000) {
+                polarFPS = polarFrameCount;
+                polarFrameCount = 0;
+                lastPolarUpdate = now;
+                document.getElementById('polarFPS').textContent = `${polarFPS} FPS`;
+            }
+        }
+        
+        function updateOccupancyMap(scanData) {
+            if (!scanData.points) return;
+            
+            // Update map with new scan data
+            scanData.points.forEach(point => {
+                if (point.r > 0 && point.r < 10) {
+                    // Ray tracing - mark free space
+                    const steps = Math.floor(point.r / MAP_RESOLUTION);
+                    for (let step = 0; step < steps; step++) {
+                        const r = step * MAP_RESOLUTION;
+                        const x = Math.floor(robotX + r * Math.cos(point.theta + robotTheta) / MAP_RESOLUTION);
+                        const y = Math.floor(robotY + r * Math.sin(point.theta + robotTheta) / MAP_RESOLUTION);
+                        
+                        if (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) {
+                            const idx = y * MAP_SIZE + x;
+                            occupancyMap[idx] = Math.max(0.0, occupancyMap[idx] - 0.02);
+                        }
+                    }
+                    
+                    // Mark obstacle
+                    if (point.r < 4.0) {
+                        const obsX = Math.floor(robotX + point.r * Math.cos(point.theta + robotTheta) / MAP_RESOLUTION);
+                        const obsY = Math.floor(robotY + point.r * Math.sin(point.theta + robotTheta) / MAP_RESOLUTION);
+                        
+                        if (obsX >= 0 && obsX < MAP_SIZE && obsY >= 0 && obsY < MAP_SIZE) {
+                            const idx = obsY * MAP_SIZE + obsX;
+                            occupancyMap[idx] = Math.min(1.0, occupancyMap[idx] + 0.1);
+                        }
+                    }
+                }
+            });
+        }
+        
+        function drawMapView() {
+            const width = mapCanvas.width;
+            const height = mapCanvas.height;
+            const scale = Math.min(width, height) / (MAP_SIZE * MAP_RESOLUTION);
+            
+            // Clear canvas
+            mapCtx.fillStyle = '#0a0a0a';
+            mapCtx.fillRect(0, 0, width, height);
+            
+            // Calculate view offset
+            let offsetX = 0;
+            let offsetY = 0;
+            if (followRobot) {
+                offsetX = width / 2 - robotX * MAP_RESOLUTION * scale;
+                offsetY = height / 2 - robotY * MAP_RESOLUTION * scale;
+            }
+            
+            mapCtx.save();
+            mapCtx.translate(offsetX, offsetY);
+            
+            // Draw occupancy map
+            const imageData = mapCtx.createImageData(MAP_SIZE, MAP_SIZE);
+            for (let y = 0; y < MAP_SIZE; y++) {
+                for (let x = 0; x < MAP_SIZE; x++) {
+                    const idx = y * MAP_SIZE + x;
+                    const value = occupancyMap[idx];
+                    const pixelIdx = (y * MAP_SIZE + x) * 4;
+                    
+                    if (value < 0.5) {
+                        // Free space - green tint
+                        imageData.data[pixelIdx] = 0;
+                        imageData.data[pixelIdx + 1] = Math.floor(255 * (0.5 - value) * 2);
+                        imageData.data[pixelIdx + 2] = 0;
+                    } else if (value > 0.5) {
+                        // Obstacle - red tint
+                        imageData.data[pixelIdx] = Math.floor(255 * (value - 0.5) * 2);
+                        imageData.data[pixelIdx + 1] = 0;
+                        imageData.data[pixelIdx + 2] = 0;
+                    } else {
+                        // Unknown - gray
+                        imageData.data[pixelIdx] = 64;
+                        imageData.data[pixelIdx + 1] = 64;
+                        imageData.data[pixelIdx + 2] = 64;
+                    }
+                    imageData.data[pixelIdx + 3] = 255;
+                }
+            }
+            
+            // Scale and draw map
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = MAP_SIZE;
+            tempCanvas.height = MAP_SIZE;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.putImageData(imageData, 0, 0);
+            
+            mapCtx.imageSmoothingEnabled = false;
+            mapCtx.drawImage(tempCanvas, 0, 0, MAP_SIZE * MAP_RESOLUTION * scale, MAP_SIZE * MAP_RESOLUTION * scale);
+            
+            // Draw robot path
+            if (robotPath.length > 1) {
+                mapCtx.strokeStyle = '#00ff8866';
+                mapCtx.lineWidth = 2;
+                mapCtx.beginPath();
+                mapCtx.moveTo(robotPath[0].x * MAP_RESOLUTION * scale, robotPath[0].y * MAP_RESOLUTION * scale);
+                for (let i = 1; i < robotPath.length; i++) {
+                    mapCtx.lineTo(robotPath[i].x * MAP_RESOLUTION * scale, robotPath[i].y * MAP_RESOLUTION * scale);
+                }
+                mapCtx.stroke();
+            }
+            
+            // Draw robot
+            const robotScreenX = robotX * MAP_RESOLUTION * scale;
+            const robotScreenY = robotY * MAP_RESOLUTION * scale;
+            
+            // Robot body
+            mapCtx.fillStyle = '#00aaff';
+            mapCtx.beginPath();
+            mapCtx.arc(robotScreenX, robotScreenY, 8, 0, 2 * Math.PI);
+            mapCtx.fill();
+            
+            // Robot direction
+            mapCtx.strokeStyle = '#00aaff';
+            mapCtx.lineWidth = 3;
+            mapCtx.beginPath();
+            mapCtx.moveTo(robotScreenX, robotScreenY);
+            mapCtx.lineTo(
+                robotScreenX + 20 * Math.cos(robotTheta),
+                robotScreenY + 20 * Math.sin(robotTheta)
+            );
+            mapCtx.stroke();
+            
+            mapCtx.restore();
+            
+            // Draw scale
+            mapCtx.fillStyle = '#fff';
+            mapCtx.font = '12px Arial';
+            mapCtx.fillText('1m', 10, height - 10);
+            mapCtx.strokeStyle = '#fff';
+            mapCtx.lineWidth = 2;
+            mapCtx.beginPath();
+            mapCtx.moveTo(10, height - 20);
+            mapCtx.lineTo(10 + scale, height - 20);
+            mapCtx.stroke();
+            
+            // Update FPS
+            mapFrameCount++;
+            const now = Date.now();
+            if (now - lastMapUpdate > 1000) {
+                mapFPS = mapFrameCount;
+                mapFrameCount = 0;
+                lastMapUpdate = now;
+                document.getElementById('mapFPS').textContent = `${mapFPS} FPS`;
+            }
+        }
+        
+        // Control functions
+        function clearMap() {
+            occupancyMap.fill(0.5);
+            robotPath.length = 0;
+            robotX = MAP_SIZE / 2;
+            robotY = MAP_SIZE / 2;
+            robotTheta = 0;
+        }
+        
+        function saveMap() {
+            // Convert map to image and download
+            const link = document.createElement('a');
+            link.download = `lidar_map_${new Date().toISOString()}.png`;
+            link.href = mapCanvas.toDataURL();
+            link.click();
+        }
+        
+        function toggleFollowRobot() {
+            followRobot = !followRobot;
+            document.getElementById('followRobotBtn').classList.toggle('active', followRobot);
+        }
+        
+        function resetView() {
+            followRobot = true;
+            document.getElementById('followRobotBtn').classList.add('active');
+        }
+        
+        // Robot movement (simulation)
+        function moveRobot(direction) {
+            const moveSpeed = 0.2;  // meters
+            const turnSpeed = 0.1;  // radians
+            
+            switch (direction) {
+                case 'forward':
+                    robotX += moveSpeed * Math.cos(robotTheta) / MAP_RESOLUTION;
+                    robotY += moveSpeed * Math.sin(robotTheta) / MAP_RESOLUTION;
+                    break;
+                case 'backward':
+                    robotX -= moveSpeed * Math.cos(robotTheta) / MAP_RESOLUTION;
+                    robotY -= moveSpeed * Math.sin(robotTheta) / MAP_RESOLUTION;
+                    break;
+                case 'left':
+                    robotTheta -= turnSpeed;
+                    break;
+                case 'right':
+                    robotTheta += turnSpeed;
+                    break;
+            }
+            
+            // Keep robot in bounds
+            robotX = Math.max(0, Math.min(MAP_SIZE - 1, robotX));
+            robotY = Math.max(0, Math.min(MAP_SIZE - 1, robotY));
+            
+            // Add to path
+            robotPath.push({ x: robotX, y: robotY });
+            if (robotPath.length > 1000) {
+                robotPath.shift();
+            }
+            
+            // Redraw if we have scan data
+            if (latestScanData) {
+                updateVisualization(latestScanData);
+            }
+        }
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'w':
+                    moveRobot('forward');
+                    break;
+                case 'ArrowDown':
+                case 's':
+                    moveRobot('backward');
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                    moveRobot('left');
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                    moveRobot('right');
+                    break;
+            }
+        });
+        
+        // Initialize
+        toggleFollowRobot();  // Start with follow robot enabled
+    </script>
+</body>
+</html>
