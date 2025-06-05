@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ROS 2 Motor Control Panel</title>
+    <title>Motor Control - Robot Dashboard</title>
     <style>
         * {
             margin: 0;
@@ -23,7 +23,9 @@
         .header {
             background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
             padding: 20px;
-            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             border-bottom: 2px solid #333;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         }
@@ -37,12 +39,29 @@
             -webkit-text-fill-color: transparent;
         }
 
+        .back-button {
+            padding: 10px 20px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 10px;
+            color: #fff;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .back-button:hover {
+            background: #3a3a3a;
+            transform: translateY(-2px);
+        }
+
         .status-bar {
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 10px;
-            margin-top: 10px;
+            padding: 10px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
         }
 
         .status-indicator {
@@ -323,11 +342,13 @@
 <body>
     <div class="header">
         <h1>ROS 2 Motor Control Panel</h1>
+        <a href="/" class="back-button">← Back to Dashboard</a>
+    </div>
+
         <div class="status-bar">
-            <span>Connection Status:</span>
-            <div class="status-indicator" id="connectionStatus"></div>
-            <span id="statusText">Disconnected</span>
-        </div>
+        <span>Connection Status:</span>
+        <div class="status-indicator" id="connectionStatus"></div>
+        <span id="statusText">Disconnected</span>
     </div>
 
     <div class="main-container">
