@@ -23,7 +23,7 @@ except ImportError:
             self.duty_cycle = 0
     
     class _DummyPCA:
-        def __init__(self):
+        def __init__(self, i2c=None):  # Accept i2c parameter but ignore it
             self.channels = [_DummyChannel() for _ in range(16)]
             self.frequency = 100
     
