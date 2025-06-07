@@ -242,6 +242,172 @@
             font-weight: 500;
         }
 
+        .header-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .settings-btn {
+            padding: 10px 20px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 10px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1em;
+        }
+
+        .settings-btn:hover {
+            background: #3a3a3a;
+            transform: translateY(-2px);
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            margin: 10% auto;
+            padding: 30px;
+            border: 1px solid #333;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .modal-title {
+            font-size: 1.8em;
+            color: #00aaff;
+        }
+
+        .close-btn {
+            font-size: 2em;
+            color: #888;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close-btn:hover {
+            color: #fff;
+        }
+
+        .settings-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .form-label {
+            color: #aaa;
+            font-size: 1.1em;
+        }
+
+        .form-input {
+            padding: 12px;
+            background: #252525;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #00aaff;
+            box-shadow: 0 0 10px rgba(0, 170, 255, 0.3);
+        }
+
+        .form-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00aaff, #0088cc);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 170, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+        }
+
+        .btn-secondary:hover {
+            background: #3a3a3a;
+        }
+
+        .connection-info {
+            background: #252525;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            border: 1px solid #333;
+        }
+
+        .connection-info p {
+            margin: 5px 0;
+            color: #888;
+            font-size: 0.9em;
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 2em;
@@ -254,6 +420,11 @@
             .component-icon {
                 font-size: 3em;
             }
+            
+            .modal-content {
+                margin: 20% auto;
+                padding: 20px;
+            }
         }
     </style>
 </head>
@@ -262,16 +433,58 @@
         <h1>Fire Fighting Robot</h1>
         <p class="subtitle">Control & Monitoring Dashboard</p>
         <div class="status-bar">
-            <div class="status-item">
-                <span>ROS Bridge:</span>
-                <div class="status-indicator" id="rosStatus"></div>
-                <span id="rosStatusText">Disconnected</span>
+            <div class="header-controls">
+                <div class="status-item">
+                    <span>ROS Bridge:</span>
+                    <div class="status-indicator" id="rosStatus"></div>
+                    <span id="rosStatusText">Disconnected</span>
+                </div>
+                <button class="settings-btn" onclick="openSettings()">⚙️ Connection Settings</button>
             </div>
             <div class="status-item">
                 <span>System:</span>
                 <div class="status-indicator connected"></div>
                 <span>Online</span>
             </div>
+        </div>
+    </div>
+
+    <!-- Connection Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Connection Settings</h2>
+                <span class="close-btn" onclick="closeSettings()">&times;</span>
+            </div>
+            <form class="settings-form" onsubmit="saveSettings(event)">
+                <div class="form-group">
+                    <label class="form-label">Robot IP Address</label>
+                    <input type="text" 
+                           id="robotIP" 
+                           class="form-input" 
+                           placeholder="192.168.x.x" 
+                           pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                           required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">ROS Bridge Port</label>
+                    <input type="number" 
+                           id="bridgePort" 
+                           class="form-input" 
+                           placeholder="9090" 
+                           min="1" 
+                           max="65535"
+                           required>
+                </div>
+                <div class="connection-info">
+                    <p>Current Connection: <span id="currentConnection">Not configured</span></p>
+                    <p>Last Connected: <span id="lastConnected">Never</span></p>
+                </div>
+                <div class="form-buttons">
+                    <button type="submit" class="btn btn-primary">Connect</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -287,7 +500,7 @@
                 </p>
                 <div class="component-status active">
                     <div class="status-indicator connected"></div>
-                    <span>4 Motors Ready</span>
+                    <span>2 Motor Channels Ready</span>
                 </div>
             </div>
 
@@ -363,7 +576,88 @@
             window.location.href = path;
         }
 
-        // Check system status
+        // Connection settings management
+        let connectionSettings = {
+            robotIP: localStorage.getItem('robotIP') || '192.168.2.1',
+            bridgePort: localStorage.getItem('bridgePort') || '9090'
+        };
+
+        // Initialize settings on page load
+        function initializeSettings() {
+            document.getElementById('robotIP').value = connectionSettings.robotIP;
+            document.getElementById('bridgePort').value = connectionSettings.bridgePort;
+            updateConnectionInfo();
+        }
+
+        // Open settings modal
+        function openSettings() {
+            document.getElementById('settingsModal').style.display = 'block';
+            initializeSettings();
+        }
+
+        // Close settings modal
+        function closeSettings() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        // Save settings and update connection
+        async function saveSettings(event) {
+            event.preventDefault();
+            
+            const newIP = document.getElementById('robotIP').value;
+            const newPort = document.getElementById('bridgePort').value;
+            
+            // Save to localStorage
+            localStorage.setItem('robotIP', newIP);
+            localStorage.setItem('bridgePort', newPort);
+            localStorage.setItem('lastConnectAttempt', new Date().toLocaleString());
+            
+            // Update backend configuration
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        robot_ip: newIP,
+                        rosbridge_port: parseInt(newPort)
+                    })
+                });
+                
+                if (response.ok) {
+                    connectionSettings.robotIP = newIP;
+                    connectionSettings.bridgePort = newPort;
+                    
+                    // Test the new connection
+                    await checkSystemStatus();
+                    
+                    // Close modal and show success
+                    closeSettings();
+                    updateConnectionInfo();
+                    
+                    // Inform user that pages need to be refreshed
+                    if (confirm('Connection settings updated. Refresh all open dashboard pages to apply changes?')) {
+                        window.location.reload();
+                    }
+                } else {
+                    alert('Failed to update connection settings');
+                }
+            } catch (error) {
+                alert('Error updating settings: ' + error.message);
+            }
+        }
+
+        // Update connection info display
+        function updateConnectionInfo() {
+            const currentConn = document.getElementById('currentConnection');
+            const lastConn = document.getElementById('lastConnected');
+            
+            currentConn.textContent = `${connectionSettings.robotIP}:${connectionSettings.bridgePort}`;
+            lastConn.textContent = localStorage.getItem('lastConnectAttempt') || 'Never';
+        }
+
+        // Check system status with current settings
         async function checkSystemStatus() {
             try {
                 const response = await fetch('/api/status');
@@ -376,14 +670,17 @@
                 if (data.connected) {
                     rosIndicator.classList.add('connected');
                     rosStatusText.textContent = 'Connected';
+                    localStorage.setItem('lastSuccessfulConnection', new Date().toLocaleString());
                 } else {
                     rosIndicator.classList.remove('connected');
                     rosStatusText.textContent = 'Disconnected';
                 }
                 
                 // Update system info
-                document.getElementById('robotIP').textContent = data.config.robot_ip;
-                document.getElementById('bridgePort').textContent = data.config.rosbridge_port;
+                if (data.config) {
+                    document.getElementById('robotIP').textContent = data.config.robot_ip;
+                    document.getElementById('bridgePort').textContent = data.config.rosbridge_port;
+                }
                 
                 // Update component status
                 let activeCount = 0;
@@ -400,6 +697,11 @@
                 
             } catch (error) {
                 console.error('Error checking status:', error);
+                // If the backend isn't responding, show disconnected
+                const rosIndicator = document.getElementById('rosStatus');
+                const rosStatusText = document.getElementById('rosStatusText');
+                rosIndicator.classList.remove('connected');
+                rosStatusText.textContent = 'Error';
             }
         }
 
@@ -415,10 +717,25 @@
                 `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         }
 
-        // Initialize
-        checkSystemStatus();
-        setInterval(checkSystemStatus, 5000);
-        setInterval(updateUptime, 1000);
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('settingsModal');
+            if (event.target == modal) {
+                closeSettings();
+            }
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            // Check if this is first time or if settings are missing
+            if (!localStorage.getItem('robotIP')) {
+                openSettings();
+            }
+            
+            checkSystemStatus();
+            setInterval(checkSystemStatus, 5000);
+            setInterval(updateUptime, 1000);
+        }
     </script>
 </body>
 </html>
