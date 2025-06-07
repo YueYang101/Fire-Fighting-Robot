@@ -16,6 +16,9 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 import logging
 
+# Import configuration manager
+from backend.config_manager import get_config_manager
+
 # Import ROS bridge components
 from backend.ros_bridge import get_ros_bridge, get_motor_controller
 from backend.sensors.lidar import get_lidar_sensor
@@ -34,15 +37,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configuration (can be moved to config file)
-CONFIG = {
-    "PI_IP": os.environ.get("ROS_ROBOT_IP", "192.168.2.1"),  # Changed from 192.168.2.4
-    "ROS_BRIDGE_PORT": int(os.environ.get("ROS_BRIDGE_PORT", "9090")),
-    "FLASK_PORT": int(os.environ.get("FLASK_PORT", "5000")),
-    "FLASK_HOST": os.environ.get("FLASK_HOST", "0.0.0.0")
-}
+# Load configuration from persistent storage
+config_manager = get_config_manager()
+CONFIG = config_manager.get_all()
 
-# Initialize ROS components
+# Initialize ROS components with saved configuration
 ros_bridge = get_ros_bridge(CONFIG["PI_IP"], CONFIG["ROS_BRIDGE_PORT"])
 motor_controller = get_motor_controller()
 lidar_sensor = get_lidar_sensor()
@@ -244,9 +243,16 @@ def update_config():
         if not new_ip or not new_port:
             return jsonify({"error": "Missing robot_ip or rosbridge_port"}), 400
         
-        # Update configuration
+        # Update configuration in memory
         CONFIG["PI_IP"] = new_ip
         CONFIG["ROS_BRIDGE_PORT"] = int(new_port)
+        
+        # Save to persistent storage
+        config_updates = {
+            "PI_IP": new_ip,
+            "ROS_BRIDGE_PORT": int(new_port)
+        }
+        config_manager.update_config(config_updates)
         
         # Update ROS bridge connection
         global ros_bridge, motor_controller, lidar_sensor
@@ -254,7 +260,7 @@ def update_config():
         motor_controller = get_motor_controller()
         lidar_sensor = get_lidar_sensor()
         
-        logger.info(f"Configuration updated: IP={new_ip}, Port={new_port}")
+        logger.info(f"Configuration updated and saved: IP={new_ip}, Port={new_port}")
         
         return jsonify({
             "success": True,
@@ -315,6 +321,7 @@ def main():
     logger.info(f"Robot IP: {CONFIG['PI_IP']}")
     logger.info(f"ROS Bridge Port: {CONFIG['ROS_BRIDGE_PORT']}")
     logger.info(f"Flask Server: {CONFIG['FLASK_HOST']}:{CONFIG['FLASK_PORT']}")
+    logger.info(f"Config file: {config_manager.config_file}")
     logger.info("=" * 50)
     
     # Run Flask app with SocketIO

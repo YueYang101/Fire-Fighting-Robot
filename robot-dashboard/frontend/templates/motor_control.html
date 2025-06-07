@@ -179,6 +179,21 @@
             margin-top: auto;
         }
 
+        /* Speed marks container */
+        .speed-marks {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            padding: 0 12px;
+        }
+
+        .speed-mark {
+            font-size: 0.75em;
+            color: #666;
+            text-align: center;
+            position: relative;
+        }
+
         .speed-label {
             display: flex;
             justify-content: space-between;
@@ -204,6 +219,23 @@
             border-radius: 5px;
             outline: none;
             transition: all 0.3s ease;
+        }
+
+        /* Add markers for the 5 positions */
+        .speed-slider {
+            background-image: linear-gradient(to right, 
+                #444 0%, #444 1px,
+                transparent 1px, transparent 24.5%,
+                #444 24.5%, #444 25.5%,
+                transparent 25.5%, transparent 49.5%,
+                #444 49.5%, #444 50.5%,
+                transparent 50.5%, transparent 74.5%,
+                #444 74.5%, #444 75.5%,
+                transparent 75.5%, transparent 99%,
+                #444 99%, #444 100%
+            );
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
         }
 
         .speed-slider::-webkit-slider-thumb {
@@ -345,7 +377,7 @@
         <a href="/" class="back-button">← Back to Dashboard</a>
     </div>
 
-        <div class="status-bar">
+    <div class="status-bar">
         <span>Connection Status:</span>
         <div class="status-indicator" id="connectionStatus"></div>
         <span id="statusText">Disconnected</span>
@@ -369,7 +401,14 @@
                         <span>Speed Control</span>
                         <span class="speed-value">0%</span>
                     </div>
-                    <input type="range" class="speed-slider" min="0" max="100" value="0">
+                    <input type="range" class="speed-slider" min="0" max="100" value="0" step="25">
+                    <div class="speed-marks">
+                        <span class="speed-mark">0%</span>
+                        <span class="speed-mark">25%</span>
+                        <span class="speed-mark">50%</span>
+                        <span class="speed-mark">75%</span>
+                        <span class="speed-mark">100%</span>
+                    </div>
                 </div>
             </div>
 
@@ -389,7 +428,14 @@
                         <span>Speed Control</span>
                         <span class="speed-value">0%</span>
                     </div>
-                    <input type="range" class="speed-slider" min="0" max="100" value="0">
+                    <input type="range" class="speed-slider" min="0" max="100" value="0" step="25">
+                    <div class="speed-marks">
+                        <span class="speed-mark">0%</span>
+                        <span class="speed-mark">25%</span>
+                        <span class="speed-mark">50%</span>
+                        <span class="speed-mark">75%</span>
+                        <span class="speed-mark">100%</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -409,6 +455,11 @@
             1: { direction: 'brake', speed: 0 }   // Right motors
         };
 
+        // Command throttling
+        let commandQueue = [];
+        let isProcessing = false;
+        const COMMAND_DELAY = 100; // 100ms between commands
+
         // Add log entry
         function addLog(message, type = 'info') {
             const logContainer = document.getElementById('logContainer');
@@ -422,6 +473,78 @@
             while (logContainer.children.length > 10) {
                 logContainer.removeChild(logContainer.lastChild);
             }
+        }
+
+        // Process command queue
+        async function processCommandQueue() {
+            if (isProcessing || commandQueue.length === 0) return;
+            
+            isProcessing = true;
+            const command = commandQueue.shift();
+            
+            try {
+                const response = await fetch(`/api/motor/${command.motorId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        direction: command.direction,
+                        speed: command.speed
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`Motor ${command.motorId}: ${command.direction} at ${command.speed}%`, 'success');
+                } else {
+                    addLog(`Motor ${command.motorId} error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Motor ${command.motorId} error: ${error.message}`, 'error');
+            }
+            
+            // Wait before processing next command
+            setTimeout(() => {
+                isProcessing = false;
+                processCommandQueue();
+            }, COMMAND_DELAY);
+        }
+
+        // Queue motor command
+        function queueMotorCommand(motorId, direction, speed) {
+            // Remove any pending commands for this motor
+            commandQueue = commandQueue.filter(cmd => cmd.motorId !== motorId);
+            
+            // Add new command
+            commandQueue.push({ motorId, direction, speed });
+            
+            // Start processing
+            processCommandQueue();
+        }
+
+        // Send motor command with direction change protection
+        async function sendMotorCommand(motorId, direction, speed) {
+            const lastDir = motorStates[motorId].direction;
+            
+            // If changing from forward to backward or vice versa, insert brake command
+            if ((lastDir === 'forward' && direction === 'backward') ||
+                (lastDir === 'backward' && direction === 'forward')) {
+                // Queue brake first
+                queueMotorCommand(motorId, 'brake', 0);
+                // Then queue the new direction after a delay
+                setTimeout(() => {
+                    queueMotorCommand(motorId, direction, speed);
+                }, 150);
+            } else {
+                // Direct command
+                queueMotorCommand(motorId, direction, speed);
+            }
+            
+            // Update state
+            motorStates[motorId].direction = direction;
+            motorStates[motorId].speed = speed;
         }
 
         // Check connection status
@@ -444,35 +567,6 @@
                 const statusText = document.getElementById('statusText');
                 indicator.classList.remove('connected');
                 statusText.textContent = 'Error';
-            }
-        }
-
-        // Send motor command
-        async function sendMotorCommand(motorId, direction, speed) {
-            try {
-                const response = await fetch(`/api/motor/${motorId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        direction: direction,
-                        speed: speed
-                    })
-                });
-
-                const data = await response.json();
-                
-                if (data.success) {
-                    addLog(`Motor ${motorId}: ${direction} at ${speed}%`, 'success');
-                    return true;
-                } else {
-                    addLog(`Motor ${motorId} error: ${data.error}`, 'error');
-                    return false;
-                }
-            } catch (error) {
-                addLog(`Motor ${motorId} error: ${error.message}`, 'error');
-                return false;
             }
         }
 
@@ -534,21 +628,36 @@
                 });
             });
             
-            // Speed slider
+            // Speed slider with throttling
             const slider = motorCard.querySelector('.speed-slider');
-            slider.addEventListener('input', async (e) => {
-                // Get the raw slider value (0-100)
+            let sliderTimeout;
+            
+            slider.addEventListener('input', (e) => {
+                // IMPORTANT: Invert the slider value
+                // Slider shows 0-100 left to right, but we need to send inverted values
                 const sliderValue = parseInt(e.target.value);
-                
-                // IMPORTANT: Use the slider value directly without reversing
                 motorStates[motorId].speed = sliderValue;
                 
                 // Update UI immediately
                 updateMotorUI(motorId);
                 
-                // If motor is not in brake mode, send command
+                // Clear any existing timeout
+                clearTimeout(sliderTimeout);
+                
+                // Only send command on discrete values (0, 25, 50, 75, 100)
+                if ([0, 25, 50, 75, 100].includes(sliderValue)) {
+                    // Send command immediately for discrete values
+                    if (motorStates[motorId].direction !== 'brake') {
+                        sendMotorCommand(motorId, motorStates[motorId].direction, sliderValue);
+                    }
+                }
+            });
+            
+            // Also handle change event for when user releases the slider
+            slider.addEventListener('change', (e) => {
+                const sliderValue = parseInt(e.target.value);
                 if (motorStates[motorId].direction !== 'brake') {
-                    await sendMotorCommand(motorId, motorStates[motorId].direction, sliderValue);
+                    sendMotorCommand(motorId, motorStates[motorId].direction, sliderValue);
                 }
             });
         });
@@ -556,6 +665,9 @@
         // Emergency stop button
         document.getElementById('emergencyStop').addEventListener('click', async () => {
             addLog('EMERGENCY STOP ACTIVATED!', 'error');
+            
+            // Clear command queue
+            commandQueue = [];
             
             try {
                 const response = await fetch('/api/motors/stop', {

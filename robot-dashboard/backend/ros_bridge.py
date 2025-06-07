@@ -135,23 +135,20 @@ class MotorController:
         """
         Convert percentage (0-100) to PWM value (0-65535)
         
-        IMPORTANT: PWM is INVERTED for forward/backward commands!
-        - 0% speed → PWM 65535 (motor stopped)
-        - 100% speed → PWM 0 (motor full speed)
+        For dual-PWM motor drivers, use NORMAL mapping:
+        - 0% speed → PWM 0 (motor stopped)
+        - 100% speed → PWM 65535 (motor full speed)
         
-        Note: The "brake" direction handles PWM differently and always uses PWM 0
-        
-        This inversion is specific to how the PCA9685 motor controller
-        interprets PWM signals for forward/backward motion.
+        Note: The previous INVERTED mapping was for different motor drivers
         """
         # Ensure percent is within bounds
         percent = max(0, min(100, percent))
         
-        # INVERTED PWM calculation for forward/backward
-        # 0% → 65535, 100% → 0
-        pwm = int((1 - percent / 100.0) * 65535)
+        # NORMAL PWM calculation (not inverted)
+        # 0% → 0, 100% → 65535
+        pwm = int((percent / 100.0) * 65535)
         
-        logger.debug(f"Converting {percent}% to INVERTED PWM: {pwm}")
+        logger.debug(f"Converting {percent}% to PWM: {pwm}")
         return pwm
     
     @staticmethod
@@ -159,14 +156,12 @@ class MotorController:
         """
         Convert PWM value (0-65535) to percentage (0-100)
         
-        IMPORTANT: PWM is INVERTED for this motor controller!
-        - PWM 0 = 100% speed
-        - PWM 65535 = 0% speed
+        Using NORMAL mapping:
+        - PWM 0 = 0% speed
+        - PWM 65535 = 100% speed
         """
-        # INVERTED calculation
-        # Original: return round((pwm / 65535.0) * 100, 1)
-        # Inverted: PWM 0 → 100%, PWM 65535 → 0%
-        return round((1 - pwm / 65535.0) * 100, 1)
+        # NORMAL calculation (not inverted)
+        return round((pwm / 65535.0) * 100, 1)
     
     def set_motor(self, motor_id: int, direction: str, speed_percent: float) -> Dict[str, Any]:
         """
@@ -199,12 +194,12 @@ class MotorController:
                 "error": "Invalid speed. Must be 0-100"
             }
         
-        # Convert to PWM
+        # Convert to PWM with NORMAL mapping
         if direction == "brake":
-            # Brake always uses PWM 0 (this was working correctly before)
+            # Brake always uses PWM 0
             speed_pwm = 0
         else:
-            # For forward/backward, use INVERTED PWM: 0% = PWM 65535, 100% = PWM 0
+            # Use normal PWM mapping: 0% = PWM 0, 100% = PWM 65535
             speed_pwm = self.percent_to_pwm(speed_percent)
         
         # Call ROS service (connection is handled in call_service)
@@ -257,7 +252,7 @@ class MotorController:
         results = []
         
         for motor_id in range(4):
-            # Brake with speed 0 (this was working correctly before)
+            # Brake with speed 0
             result = self.set_motor(motor_id, "brake", 0)
             results.append(result)
         
