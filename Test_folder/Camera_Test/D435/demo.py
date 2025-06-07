@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Intel RealSense D435 Depth Camera Demo
-Tests depth camera functionality on Raspberry Pi 4
+Intel RealSense D435 Depth Camera Demo - Terminal Version
+Tests depth camera functionality on Raspberry Pi 4 (No GUI required)
 """
 
 import numpy as np
-import cv2
 import time
 import sys
+import os
 
 try:
     import pyrealsense2 as rs
@@ -19,12 +19,12 @@ except ImportError:
     sys.exit(1)
 
 
-class D435Demo:
+class D435TerminalDemo:
     def __init__(self):
         """Initialize the RealSense D435 camera"""
         self.pipeline = None
         self.config = None
-        self.align = None
+        self.depth_scale = None
         
     def initialize_camera(self):
         """Configure and start the camera pipeline"""
@@ -39,33 +39,30 @@ class D435Demo:
             
             if len(devices) == 0:
                 print("No RealSense devices detected!")
+                print("Check USB connection (use USB 3.0 port)")
                 return False
             
             # Print device info
+            print("\n" + "="*60)
+            print("DEVICE INFORMATION")
+            print("="*60)
             for dev in devices:
-                print(f"Found device: {dev.get_info(rs.camera_info.name)}")
-                print(f"Serial number: {dev.get_info(rs.camera_info.serial_number)}")
-                print(f"Firmware version: {dev.get_info(rs.camera_info.firmware_version)}")
-                print("-" * 50)
+                print(f"Device: {dev.get_info(rs.camera_info.name)}")
+                print(f"Serial: {dev.get_info(rs.camera_info.serial_number)}")
+                print(f"Firmware: {dev.get_info(rs.camera_info.firmware_version)}")
+            print("="*60 + "\n")
             
-            # Configure streams
-            # Depth stream - 640x480 @ 30 FPS
-            self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-            # Color stream - 640x480 @ 30 FPS
-            self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+            # Configure streams - Lower resolution for terminal display
+            # Depth stream - 320x240 @ 30 FPS
+            self.config.enable_stream(rs.stream.depth, 320, 240, rs.format.z16, 30)
             
             # Start streaming
             profile = self.pipeline.start(self.config)
             
-            # Get depth sensor
+            # Get depth sensor and scale
             depth_sensor = profile.get_device().first_depth_sensor()
-            
-            # Get depth scale
             self.depth_scale = depth_sensor.get_depth_scale()
             print(f"Depth Scale: {self.depth_scale}")
-            
-            # Create align object to align depth to color
-            self.align = rs.align(rs.stream.color)
             
             print("Camera initialized successfully!")
             return True
@@ -74,121 +71,192 @@ class D435Demo:
             print(f"Failed to initialize camera: {e}")
             return False
     
-    def get_frames(self):
-        """Get aligned color and depth frames"""
+    def get_depth_frame(self):
+        """Get depth frame data"""
         try:
-            # Wait for frames
             frames = self.pipeline.wait_for_frames()
+            depth_frame = frames.get_depth_frame()
             
-            # Align depth frame to color frame
-            aligned_frames = self.align.process(frames)
+            if not depth_frame:
+                return None
             
-            # Get aligned frames
-            depth_frame = aligned_frames.get_depth_frame()
-            color_frame = aligned_frames.get_color_frame()
-            
-            if not depth_frame or not color_frame:
-                return None, None
-            
-            # Convert to numpy arrays
+            # Convert to numpy array
             depth_image = np.asanyarray(depth_frame.get_data())
-            color_image = np.asanyarray(color_frame.get_data())
-            
-            return color_image, depth_image
+            return depth_image
             
         except Exception as e:
-            print(f"Error getting frames: {e}")
-            return None, None
+            print(f"Error getting frame: {e}")
+            return None
     
-    def process_depth_data(self, depth_image, x, y):
-        """Get depth value at specific pixel coordinates"""
-        if 0 <= x < depth_image.shape[1] and 0 <= y < depth_image.shape[0]:
-            depth_value = depth_image[y, x] * self.depth_scale  # Convert to meters
-            return depth_value
-        return 0
+    def depth_to_ascii(self, depth_array, width=80, height=24):
+        """Convert depth data to ASCII visualization"""
+        # ASCII characters for different depth levels
+        ascii_chars = " .:-=+*#%@"
+        
+        # Resize depth array to fit terminal
+        h, w = depth_array.shape
+        scale_w = w // width
+        scale_h = h // height
+        
+        # Downsample
+        small_depth = depth_array[::scale_h, ::scale_w]
+        
+        # Convert depth to meters
+        depth_meters = small_depth * self.depth_scale
+        
+        # Normalize depth values (0-5 meters range)
+        max_depth = 5.0
+        normalized = np.clip(depth_meters / max_depth, 0, 1)
+        
+        # Convert to ASCII
+        ascii_indices = (normalized * (len(ascii_chars) - 1)).astype(int)
+        
+        # Build ASCII image
+        ascii_image = []
+        for row in ascii_indices:
+            ascii_row = ''.join(ascii_chars[idx] for idx in row[:width])
+            ascii_image.append(ascii_row)
+        
+        return ascii_image[:height], depth_meters
     
-    def run_demo(self):
-        """Main demo loop"""
+    def print_depth_stats(self, depth_meters):
+        """Print depth statistics"""
+        valid_depths = depth_meters[depth_meters > 0]
+        
+        if len(valid_depths) > 0:
+            stats = {
+                'Min': np.min(valid_depths),
+                'Max': np.max(valid_depths),
+                'Mean': np.mean(valid_depths),
+                'Center': depth_meters[depth_meters.shape[0]//2, depth_meters.shape[1]//2]
+            }
+        else:
+            stats = {'Min': 0, 'Max': 0, 'Mean': 0, 'Center': 0}
+        
+        return stats
+    
+    def save_depth_data(self, depth_image):
+        """Save depth data to file"""
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        filename = f'depth_data_{timestamp}.npy'
+        np.save(filename, depth_image)
+        
+        # Also save as CSV for easy viewing
+        csv_filename = f'depth_data_{timestamp}.csv'
+        depth_meters = depth_image * self.depth_scale
+        np.savetxt(csv_filename, depth_meters, delimiter=',', fmt='%.3f')
+        
+        return filename, csv_filename
+    
+    def run_terminal_demo(self):
+        """Main demo loop for terminal"""
         if not self.initialize_camera():
             return
         
-        print("\nStarting camera feed...")
-        print("Press 'q' to quit")
-        print("Press 's' to save current frames")
-        print("Click on the image to get depth at that point")
+        print("\nStarting depth camera stream...")
+        print("Commands: 'q' to quit, 's' to save depth data")
+        print("Depth visualization (near to far): " + " .:-=+*#%@")
+        print("-" * 80)
         
-        # Mouse callback variables
-        mouse_x, mouse_y = 320, 240
-        
-        def mouse_callback(event, x, y, flags, param):
-            nonlocal mouse_x, mouse_y
-            if event == cv2.EVENT_LBUTTONDOWN:
-                mouse_x, mouse_y = x, y
-        
-        # Create windows
-        cv2.namedWindow('Color', cv2.WINDOW_NORMAL)
-        cv2.namedWindow('Depth', cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback('Color', mouse_callback)
-        
-        # Frame counter for FPS calculation
         frame_count = 0
         start_time = time.time()
         
         try:
             while True:
-                # Get frames
-                color_image, depth_image = self.get_frames()
+                # Clear screen (works on most terminals)
+                os.system('clear' if os.name == 'posix' else 'cls')
                 
-                if color_image is None or depth_image is None:
+                # Get depth frame
+                depth_image = self.get_depth_frame()
+                
+                if depth_image is None:
                     continue
                 
-                # Apply colormap to depth image for visualization
-                depth_colormap = cv2.applyColorMap(
-                    cv2.convertScaleAbs(depth_image, alpha=0.03), 
-                    cv2.COLORMAP_JET
-                )
+                # Convert to ASCII and get stats
+                ascii_image, depth_meters = self.depth_to_ascii(depth_image)
+                stats = self.print_depth_stats(depth_meters)
                 
-                # Get depth at mouse position
-                depth_value = self.process_depth_data(depth_image, mouse_x, mouse_y)
-                
-                # Draw crosshair and depth info on color image
-                display_image = color_image.copy()
-                cv2.drawMarker(display_image, (mouse_x, mouse_y), 
-                              (0, 255, 0), cv2.MARKER_CROSS, 20, 2)
-                
-                # Add text info
-                cv2.putText(display_image, f"Depth: {depth_value:.2f}m", 
-                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                cv2.putText(display_image, f"Position: ({mouse_x}, {mouse_y})", 
-                           (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                
-                # Calculate and display FPS
+                # Calculate FPS
                 frame_count += 1
-                if frame_count % 30 == 0:
-                    end_time = time.time()
-                    fps = 30 / (end_time - start_time)
-                    print(f"FPS: {fps:.2f}")
-                    start_time = time.time()
+                elapsed = time.time() - start_time
+                fps = frame_count / elapsed if elapsed > 0 else 0
                 
-                cv2.putText(display_image, f"FPS: {fps:.1f}", 
-                           (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                # Print header
+                print(f"RealSense D435 - Terminal View | FPS: {fps:.1f}")
+                print("="*80)
                 
-                # Display images
-                cv2.imshow('Color', display_image)
-                cv2.imshow('Depth', depth_colormap)
+                # Print ASCII visualization
+                for line in ascii_image:
+                    print(line)
                 
-                # Handle key press
-                key = cv2.waitKey(1) & 0xFF
+                # Print statistics
+                print("="*80)
+                print(f"Depth Stats (meters): Min: {stats['Min']:.2f} | "
+                      f"Max: {stats['Max']:.2f} | "
+                      f"Mean: {stats['Mean']:.2f} | "
+                      f"Center: {stats['Center']:.2f}")
+                print("Commands: 'q' + Enter to quit, 's' + Enter to save")
                 
-                if key == ord('q'):
-                    break
-                elif key == ord('s'):
-                    # Save frames
-                    timestamp = time.strftime("%Y%m%d_%H%M%S")
-                    cv2.imwrite(f'color_{timestamp}.png', color_image)
-                    cv2.imwrite(f'depth_{timestamp}.png', depth_colormap)
-                    np.save(f'depth_data_{timestamp}.npy', depth_image)
-                    print(f"Saved frames with timestamp: {timestamp}")
+                # Non-blocking input check
+                import select
+                if select.select([sys.stdin], [], [], 0.0)[0]:
+                    key = sys.stdin.readline().strip()
+                    
+                    if key == 'q':
+                        break
+                    elif key == 's':
+                        npy_file, csv_file = self.save_depth_data(depth_image)
+                        print(f"\nSaved: {npy_file} and {csv_file}")
+                        time.sleep(2)
+                
+                time.sleep(0.033)  # ~30 FPS
+                
+        except KeyboardInterrupt:
+            print("\n\nStopping...")
+        
+        finally:
+            self.cleanup()
+    
+    def run_matrix_demo(self):
+        """Alternative demo showing depth as numeric matrix"""
+        if not self.initialize_camera():
+            return
+        
+        print("\nRunning matrix view demo...")
+        print("Showing 10x10 center region depth values in meters")
+        print("Press Ctrl+C to stop")
+        print("-" * 80)
+        
+        try:
+            while True:
+                depth_image = self.get_depth_frame()
+                
+                if depth_image is None:
+                    continue
+                
+                # Get center region
+                h, w = depth_image.shape
+                center_y, center_x = h//2, w//2
+                
+                # Extract 10x10 region
+                region = depth_image[center_y-5:center_y+5, center_x-5:center_x+5]
+                depth_meters = region * self.depth_scale
+                
+                # Clear screen
+                os.system('clear' if os.name == 'posix' else 'cls')
+                
+                print("Depth Matrix (meters) - 10x10 center region:")
+                print("="*80)
+                
+                # Print matrix with formatting
+                for row in depth_meters:
+                    row_str = " ".join(f"{val:5.2f}" for val in row)
+                    print(row_str)
+                
+                print("="*80)
+                print(f"Center depth: {depth_meters[5,5]:.2f} meters")
+                
+                time.sleep(0.5)  # Update every 0.5 seconds
                 
         except KeyboardInterrupt:
             print("\nStopping...")
@@ -200,30 +268,40 @@ class D435Demo:
         """Clean up resources"""
         if self.pipeline:
             self.pipeline.stop()
-        cv2.destroyAllWindows()
-        print("Camera stopped and windows closed.")
-
-
-def check_usb_bandwidth():
-    """Check if camera is connected to USB 3.0"""
-    print("\nChecking USB connection...")
-    print("For best performance, ensure D435 is connected to a USB 3.0 port (blue port)")
-    print("USB 2.0 will work but with limited resolution and framerate\n")
+        print("Camera stopped.")
 
 
 def main():
     print("="*60)
-    print("Intel RealSense D435 Depth Camera Demo")
+    print("Intel RealSense D435 Depth Camera Demo - Terminal Version")
     print("="*60)
     
     if not REALSENSE_AVAILABLE:
         return
     
-    check_usb_bandwidth()
+    # Create demo instance
+    demo = D435TerminalDemo()
     
-    # Create and run demo
-    demo = D435Demo()
-    demo.run_demo()
+    # Ask user which demo to run
+    print("\nSelect demo mode:")
+    print("1. ASCII visualization (full frame)")
+    print("2. Numeric matrix (center region)")
+    
+    choice = input("\nEnter choice (1 or 2): ").strip()
+    
+    if choice == '1':
+        # For ASCII mode, we need to set terminal to non-canonical mode
+        import termios, tty
+        old_settings = termios.tcgetattr(sys.stdin)
+        try:
+            tty.setcbreak(sys.stdin.fileno())
+            demo.run_terminal_demo()
+        finally:
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+    elif choice == '2':
+        demo.run_matrix_demo()
+    else:
+        print("Invalid choice")
 
 
 if __name__ == "__main__":
