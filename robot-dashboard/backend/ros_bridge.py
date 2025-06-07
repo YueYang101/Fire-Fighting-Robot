@@ -290,11 +290,30 @@ class MotorController:
 _ros_bridge = None
 _motor_controller = None
 
-def get_ros_bridge(host: str = "192.168.2.4", port: int = 9090) -> ROSBridgeConnection:
+def get_ros_bridge(host: str = None, port: int = None) -> ROSBridgeConnection:
     """Get or create ROSBridge connection instance"""
     global _ros_bridge
-    if _ros_bridge is None:
-        _ros_bridge = ROSBridgeConnection(host, port)
+    
+    # If host/port provided, update or create new connection
+    if host is not None or port is not None:
+        if _ros_bridge:
+            # Update existing connection
+            if host:
+                _ros_bridge.host = host
+                _ros_bridge.url = f"ws://{host}:{_ros_bridge.port}"
+            if port:
+                _ros_bridge.port = port
+                _ros_bridge.url = f"ws://{_ros_bridge.host}:{port}"
+        else:
+            # Create new connection with provided settings
+            _ros_bridge = ROSBridgeConnection(
+                host or "192.168.2.4", 
+                port or 9090
+            )
+    elif _ros_bridge is None:
+        # Create with defaults if not exists
+        _ros_bridge = ROSBridgeConnection()
+    
     return _ros_bridge
 
 def get_motor_controller() -> MotorController:

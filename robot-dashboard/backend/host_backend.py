@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 # Configuration (can be moved to config file)
 CONFIG = {
-    "PI_IP": os.environ.get("ROS_ROBOT_IP", "192.168.2.4"),
+    "PI_IP": os.environ.get("ROS_ROBOT_IP", "192.168.2.1"),  # Changed from 192.168.2.4
     "ROS_BRIDGE_PORT": int(os.environ.get("ROS_BRIDGE_PORT", "9090")),
     "FLASK_PORT": int(os.environ.get("FLASK_PORT", "5000")),
     "FLASK_HOST": os.environ.get("FLASK_HOST", "0.0.0.0")
@@ -280,7 +280,8 @@ def main():
         app,
         debug=debug_mode,
         host=CONFIG['FLASK_HOST'],
-        port=CONFIG['FLASK_PORT']
+        port=CONFIG['FLASK_PORT'],
+        use_reloader=False  # Disable auto-reloader to prevent numpy reload issues
     )
 
 if __name__ == '__main__':

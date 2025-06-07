@@ -353,10 +353,10 @@
 
     <div class="main-container">
         <div class="controls-grid">
-            <!-- Motor 0 -->
+            <!-- Left Motors -->
             <div class="motor-card" data-motor="0">
                 <div class="motor-header">
-                    <h2 class="motor-title">Motor 0</h2>
+                    <h2 class="motor-title">Left Motors</h2>
                     <span class="motor-status">IDLE</span>
                 </div>
                 <div class="direction-controls">
@@ -373,50 +373,10 @@
                 </div>
             </div>
 
-            <!-- Motor 1 -->
+            <!-- Right Motors -->
             <div class="motor-card" data-motor="1">
                 <div class="motor-header">
-                    <h2 class="motor-title">Motor 1</h2>
-                    <span class="motor-status">IDLE</span>
-                </div>
-                <div class="direction-controls">
-                    <button class="direction-btn" data-direction="forward">Forward</button>
-                    <button class="direction-btn" data-direction="backward">Backward</button>
-                    <button class="direction-btn brake" data-direction="brake">Brake</button>
-                </div>
-                <div class="speed-control">
-                    <div class="speed-label">
-                        <span>Speed Control</span>
-                        <span class="speed-value">0%</span>
-                    </div>
-                    <input type="range" class="speed-slider" min="0" max="100" value="0">
-                </div>
-            </div>
-
-            <!-- Motor 2 -->
-            <div class="motor-card" data-motor="2">
-                <div class="motor-header">
-                    <h2 class="motor-title">Motor 2</h2>
-                    <span class="motor-status">IDLE</span>
-                </div>
-                <div class="direction-controls">
-                    <button class="direction-btn" data-direction="forward">Forward</button>
-                    <button class="direction-btn" data-direction="backward">Backward</button>
-                    <button class="direction-btn brake" data-direction="brake">Brake</button>
-                </div>
-                <div class="speed-control">
-                    <div class="speed-label">
-                        <span>Speed Control</span>
-                        <span class="speed-value">0%</span>
-                    </div>
-                    <input type="range" class="speed-slider" min="0" max="100" value="0">
-                </div>
-            </div>
-
-            <!-- Motor 3 -->
-            <div class="motor-card" data-motor="3">
-                <div class="motor-header">
-                    <h2 class="motor-title">Motor 3</h2>
+                    <h2 class="motor-title">Right Motors</h2>
                     <span class="motor-status">IDLE</span>
                 </div>
                 <div class="direction-controls">
@@ -445,10 +405,8 @@
     <script>
         // Motor control state
         const motorStates = {
-            0: { direction: 'brake', speed: 0 },
-            1: { direction: 'brake', speed: 0 },
-            2: { direction: 'brake', speed: 0 },
-            3: { direction: 'brake', speed: 0 }
+            0: { direction: 'brake', speed: 0 },  // Left motors
+            1: { direction: 'brake', speed: 0 }   // Right motors
         };
 
         // Add log entry
@@ -607,8 +565,8 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Reset all motor states
-                    for (let i = 0; i < 4; i++) {
+                    // Reset only 2 motors
+                    for (let i = 0; i < 2; i++) {
                         motorStates[i] = { direction: 'brake', speed: 0 };
                         updateMotorUI(i);
                     }
@@ -626,7 +584,7 @@
         setInterval(checkConnection, 5000); // Check connection every 5 seconds
         
         // Initialize UI
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 2; i++) {
             updateMotorUI(i);
         }
         
