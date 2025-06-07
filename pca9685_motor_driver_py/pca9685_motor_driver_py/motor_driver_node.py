@@ -4,14 +4,15 @@ motor_driver_node.py
 --------------------
 ROS 2 node that drives DC motors through an Adafruit PCA9685 PWM board.
 
+Modified for dual-PWM motor drivers (like DBH-1A):
 Each motor uses two PCA channels:
-    • speed_ch – duty-cycle (0-65535) → PWM duty (speed)
-    • dir_ch   – duty-cycle (0 % or 100 %) → H-bridge direction
+    • forward_ch – PWM for forward motion (0 when backward)
+    • backward_ch – PWM for backward motion (0 when forward)
 
 The mapping is supplied at run-time via the parameter *motor_map*
 (encoded as an INTEGER_ARRAY):
 
-    motor_map: [speed0, dir0,  speed1, dir1,  …]
+    motor_map: [forward0, backward0,  forward1, backward1,  …]
 
 Example for two motors:
     motor_map: [0, 1, 2, 3]   # motor 0 → CH0/1, motor 1 → CH2/3
@@ -53,8 +54,6 @@ except ImportError:             # running on a PC with no I²C bus
     adafruit_pca9685 = type("adafruit_pca9685", (), {"PCA9685": _DummyPCA})
 
 # ────────────────────────────── helpers
-FORWARD_POLARITY  = (0, 0xFFFF)     # (Lo,Hi) on dir_ch  → forward
-BACKWARD_POLARITY = (0xFFFF, 0)     # (Hi,Lo)            → reverse
 CLAMP = lambda v, lo=0, hi=0xFFFF: max(lo, min(hi, v))
 
 # ────────────────────────────── main node
@@ -65,7 +64,7 @@ class MotorDriver(Node):
         # 1. Declare parameters (force motor_map to be INTEGER_ARRAY)
         self.declare_parameter(
             "motor_map",
-            [0, 0],                                                   # <- plain int list
+            [0, 1, 2, 3],                                            # <- default: 2 motors
             ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER_ARRAY)
         )
         self.declare_parameter("pwm_frequency", 100)
@@ -77,11 +76,11 @@ class MotorDriver(Node):
         if len(flat_map) % 2:
             self.get_logger().fatal(
                 "motor_map must contain an even number of integers "
-                "(speed_ch, dir_ch pairs)")
+                "(forward_ch, backward_ch pairs)")
             rclpy.shutdown()
             return
 
-        # Convert flat list → {motor_id: (speed_ch, dir_ch)}
+        # Convert flat list → {motor_id: (forward_ch, backward_ch)}
         self.motor_map: Dict[int, Tuple[int, int]] = {
             i: (flat_map[2 * i], flat_map[2 * i + 1])
             for i in range(len(flat_map) // 2)
@@ -98,6 +97,7 @@ class MotorDriver(Node):
             f"PCA9685 freq {pwm_freq} Hz "
             f"({'real' if HARDWARE else 'dummy'} hardware)"
         )
+        self.get_logger().info(f"Motor mapping: {self.motor_map}")
 
         # 4. ROS service
         self.create_service(SetMotor, "set_motor", self.handle_set_motor)
@@ -116,25 +116,39 @@ class MotorDriver(Node):
             res.message = f"motor {mid} not in motor_map"
             return res
 
-        speed_ch, dir_ch = self.motor_map[mid]
+        forward_ch, backward_ch = self.motor_map[mid]
 
+        # Dual-PWM control logic
         if dirn == "forward":
-            self.pca.channels[dir_ch].duty_cycle = FORWARD_POLARITY[1]
+            # PWM on forward channel, 0 on backward channel
+            self.pca.channels[forward_ch].duty_cycle = speed
+            self.pca.channels[backward_ch].duty_cycle = 0
+            self.get_logger().debug(
+                f"Motor {mid} forward: CH{forward_ch}={speed}, CH{backward_ch}=0"
+            )
         elif dirn == "backward":
-            self.pca.channels[dir_ch].duty_cycle = BACKWARD_POLARITY[0]
+            # 0 on forward channel, PWM on backward channel
+            self.pca.channels[forward_ch].duty_cycle = 0
+            self.pca.channels[backward_ch].duty_cycle = speed
+            self.get_logger().debug(
+                f"Motor {mid} backward: CH{forward_ch}=0, CH{backward_ch}={speed}"
+            )
         elif dirn == "brake":
-            self.pca.channels[dir_ch].duty_cycle = 0
-            speed = 0
+            # Both channels to 0
+            self.pca.channels[forward_ch].duty_cycle = 0
+            self.pca.channels[backward_ch].duty_cycle = 0
+            self.get_logger().debug(
+                f"Motor {mid} brake: CH{forward_ch}=0, CH{backward_ch}=0"
+            )
         else:
             res.success = False
             res.message = "direction must be forward/backward/brake"
             return res
 
-        self.pca.channels[speed_ch].duty_cycle = speed
         res.success = True
         res.message = (
             f"motor {mid} dir={dirn} speed={speed} "
-            f"(CH{speed_ch},CH{dir_ch})"
+            f"(CH{forward_ch},CH{backward_ch})"
         )
         return res
 

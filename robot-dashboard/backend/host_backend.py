@@ -228,6 +228,50 @@ def get_config():
         "flask_host": CONFIG["FLASK_HOST"]
     })
 
+@app.route('/api/config', methods=['POST'])
+def update_config():
+    """Update configuration with new connection settings"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        # Get new settings
+        new_ip = data.get('robot_ip')
+        new_port = data.get('rosbridge_port')
+        
+        if not new_ip or not new_port:
+            return jsonify({"error": "Missing robot_ip or rosbridge_port"}), 400
+        
+        # Update configuration
+        CONFIG["PI_IP"] = new_ip
+        CONFIG["ROS_BRIDGE_PORT"] = int(new_port)
+        
+        # Update ROS bridge connection
+        global ros_bridge, motor_controller, lidar_sensor
+        ros_bridge = get_ros_bridge(CONFIG["PI_IP"], CONFIG["ROS_BRIDGE_PORT"])
+        motor_controller = get_motor_controller()
+        lidar_sensor = get_lidar_sensor()
+        
+        logger.info(f"Configuration updated: IP={new_ip}, Port={new_port}")
+        
+        return jsonify({
+            "success": True,
+            "message": "Configuration updated successfully",
+            "config": {
+                "robot_ip": CONFIG["PI_IP"],
+                "rosbridge_port": CONFIG["ROS_BRIDGE_PORT"]
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating configuration: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 # =============================================================================
 # WEBSOCKET EVENTS
 # =============================================================================
