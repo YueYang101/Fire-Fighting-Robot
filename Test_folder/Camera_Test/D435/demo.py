@@ -63,17 +63,19 @@ class D435TerminalDemo:
             
             # Try different configurations based on USB connection
             configs_to_try = [
-                # USB 3.0 configs
-                (640, 480, 30),
-                (640, 480, 15),
-                (640, 480, 6),
-                # USB 2.0 configs
-                (480, 270, 30),
-                (480, 270, 15),
-                (480, 270, 6),
-                (424, 240, 30),
+                # Optimized for Raspberry Pi - start with lower settings
+                # USB 2.0 friendly configs
+                (424, 240, 6),   # Lowest stable config
                 (424, 240, 15),
-                (424, 240, 6),
+                (480, 270, 6),
+                (480, 270, 15),
+                (640, 360, 6),
+                # USB 3.0 configs (if available)
+                (640, 480, 6),
+                (640, 480, 15),
+                (640, 480, 30),
+                (848, 480, 6),
+                (848, 480, 15),
             ]
             
             # Try each configuration
@@ -97,6 +99,15 @@ class D435TerminalDemo:
                     depth_sensor = profile.get_device().first_depth_sensor()
                     self.depth_scale = depth_sensor.get_depth_scale()
                     print(f"Depth Scale: {self.depth_scale}")
+                    
+                    # For Raspberry Pi - set some optimizations
+                    try:
+                        # Disable auto-exposure for more consistent performance
+                        depth_sensor.set_option(rs.option.enable_auto_exposure, 0)
+                        # Set a fixed exposure value
+                        depth_sensor.set_option(rs.option.exposure, 8500)
+                    except:
+                        pass  # Some options might not be available
                     
                     # Store resolution for later use
                     self.width = width
@@ -318,6 +329,53 @@ class D435TerminalDemo:
         finally:
             self.cleanup()
     
+    def run_performance_test(self):
+        """Minimal processing performance test"""
+        if not self.initialize_camera():
+            return
+        
+        print("\nRunning performance test...")
+        print("This mode does minimal processing to test maximum FPS")
+        print("Press Ctrl+C to stop\n")
+        
+        frame_count = 0
+        start_time = time.time()
+        last_print = start_time
+        
+        try:
+            while True:
+                # Just get frame and basic stats
+                depth_image = self.get_depth_frame()
+                
+                if depth_image is None:
+                    continue
+                
+                frame_count += 1
+                current_time = time.time()
+                
+                # Print stats every second
+                if current_time - last_print >= 1.0:
+                    elapsed = current_time - start_time
+                    fps = frame_count / elapsed
+                    
+                    # Get simple center depth
+                    h, w = depth_image.shape
+                    center_depth = depth_image[h//2, w//2] * self.depth_scale
+                    
+                    print(f"\rFPS: {fps:.1f} | Frames: {frame_count} | Center depth: {center_depth:.2f}m", end='', flush=True)
+                    last_print = current_time
+                
+        except KeyboardInterrupt:
+            print("\n\nPerformance test complete!")
+            elapsed = time.time() - start_time
+            avg_fps = frame_count / elapsed
+            print(f"Average FPS: {avg_fps:.1f}")
+            print(f"Total frames: {frame_count}")
+            print(f"Duration: {elapsed:.1f} seconds")
+        
+        finally:
+            self.cleanup()
+    
     def cleanup(self):
         """Clean up resources"""
         if self.pipeline:
@@ -376,8 +434,9 @@ def main():
     print("\nSelect demo mode:")
     print("1. ASCII visualization (full frame)")
     print("2. Numeric matrix (center region)")
+    print("3. Performance test (minimal processing)")
     
-    choice = input("\nEnter choice (1 or 2): ").strip()
+    choice = input("\nEnter choice (1, 2, or 3): ").strip()
     
     if choice == '1':
         # For ASCII mode, we need to set terminal to non-canonical mode
@@ -390,6 +449,8 @@ def main():
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
     elif choice == '2':
         demo.run_matrix_demo()
+    elif choice == '3':
+        demo.run_performance_test()
     else:
         print("Invalid choice")
 
