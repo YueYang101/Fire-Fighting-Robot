@@ -44,12 +44,13 @@ except ImportError:
 
 
 class LinearActuatorPCA9685:
-    def __init__(self, in1_channel=4, in2_channel=5, frequency=1000):
+    def __init__(self, in1_channel=4, in2_channel=5, frequency=1000, max_extend_time=8):
         """
         Initialize linear actuator controller using PCA9685
         in1_channel: PCA9685 channel for IN1 (default: 4)
         in2_channel: PCA9685 channel for IN2 (default: 5)
         frequency: PWM frequency in Hz (default: 1000)
+        max_extend_time: Maximum time allowed for extension in seconds (default: 8)
         """
         # Initialize I2C and PCA9685
         self.i2c = busio.I2C(board.SCL, board.SDA)
@@ -60,11 +61,33 @@ class LinearActuatorPCA9685:
         self.in1_channel = in1_channel
         self.in2_channel = in2_channel
         
+        # Safety limit for extension only
+        self.max_extend_time = max_extend_time
+        
+        # Track movement start time
+        self.movement_start_time = None
+        self.current_direction = None
+        
         # Initialize channels to 0 (stopped)
         self.stop()
         
         print(f"PCA9685 initialized - IN1: Channel {in1_channel}, IN2: Channel {in2_channel}")
         print(f"PWM Frequency: {frequency}Hz")
+        print(f"Safety limit - Max extend: {max_extend_time}s (no limit on retraction)")
+    
+    def _check_safety_timeout(self):
+        """
+        Check if extension movement has exceeded safety time limit
+        Only applies to extension, not retraction
+        """
+        if self.movement_start_time and self.current_direction == "extend":
+            elapsed = time.time() - self.movement_start_time
+            
+            if elapsed >= self.max_extend_time:
+                print(f"\n⚠️  SAFETY STOP: Extension time limit ({self.max_extend_time}s) reached!")
+                self.stop()
+                return True
+        return False
     
     def _set_duty_cycle(self, channel, value):
         """
@@ -78,6 +101,10 @@ class LinearActuatorPCA9685:
         Extend the linear actuator
         speed: 0-100 (percentage of max speed)
         """
+        # Check if already at safety limit
+        if self._check_safety_timeout():
+            return
+        
         # Convert percentage to 16-bit duty cycle
         duty_cycle = int((speed / 100.0) * 65535)
         
@@ -85,11 +112,17 @@ class LinearActuatorPCA9685:
         self._set_duty_cycle(self.in1_channel, duty_cycle)
         self._set_duty_cycle(self.in2_channel, 0)
         
+        # Track movement for safety
+        self.movement_start_time = time.time()
+        self.current_direction = "extend"
+        
         print(f"Extending actuator at {speed}% speed (duty cycle: {duty_cycle})")
+        if speed == 100:
+            print(f"⚠️  Auto-stop will engage after {self.max_extend_time} seconds for safety")
     
     def retract(self, speed=100):
         """
-        Retract the linear actuator
+        Retract the linear actuator (no time limit)
         speed: 0-100 (percentage of max speed)
         """
         # Convert percentage to 16-bit duty cycle
@@ -99,7 +132,12 @@ class LinearActuatorPCA9685:
         self._set_duty_cycle(self.in1_channel, 0)
         self._set_duty_cycle(self.in2_channel, duty_cycle)
         
+        # Track movement for consistency (but no safety limit)
+        self.movement_start_time = time.time()
+        self.current_direction = "retract"
+        
         print(f"Retracting actuator at {speed}% speed (duty cycle: {duty_cycle})")
+        print("No time limit on retraction - will run until stopped")
     
     def stop(self):
         """
@@ -108,6 +146,10 @@ class LinearActuatorPCA9685:
         # Both channels to 0
         self._set_duty_cycle(self.in1_channel, 0)
         self._set_duty_cycle(self.in2_channel, 0)
+        
+        # Clear movement tracking
+        self.movement_start_time = None
+        self.current_direction = None
         
         print("Actuator stopped")
     
@@ -152,6 +194,17 @@ def main():
     print("  quit  - Exit program")
     print("-"*50)
     
+    # Start safety monitor thread
+    import threading
+    
+    def safety_monitor():
+        while True:
+            actuator._check_safety_timeout()
+            time.sleep(0.1)  # Check every 100ms
+    
+    safety_thread = threading.Thread(target=safety_monitor, daemon=True)
+    safety_thread.start()
+    
     try:
         while True:
             command = input("\nEnter command: ").lower().strip()
@@ -171,9 +224,15 @@ def main():
             elif command in '123456789':
                 duration = int(command)
                 direction = input(f"Extend (e) or Retract (r) for {duration} seconds? ").lower()
+                
                 if direction == 'e':
+                    if duration > actuator.max_extend_time:
+                        print(f"⚠️  Warning: Extension duration {duration}s exceeds safety limit of {actuator.max_extend_time}s")
+                        print(f"Duration will be capped at {actuator.max_extend_time}s")
+                        duration = actuator.max_extend_time
                     actuator.extend_for_duration(duration)
                 elif direction == 'r':
+                    # No limit on retraction
                     actuator.retract_for_duration(duration)
                 else:
                     print("Invalid direction. Use 'e' or 'r'")
