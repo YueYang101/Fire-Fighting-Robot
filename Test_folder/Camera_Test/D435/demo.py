@@ -46,26 +46,80 @@ class D435TerminalDemo:
             print("\n" + "="*60)
             print("DEVICE INFORMATION")
             print("="*60)
+            device = None
             for dev in devices:
                 print(f"Device: {dev.get_info(rs.camera_info.name)}")
                 print(f"Serial: {dev.get_info(rs.camera_info.serial_number)}")
                 print(f"Firmware: {dev.get_info(rs.camera_info.firmware_version)}")
+                device = dev
+                
+                # Check USB type
+                if dev.supports(rs.camera_info.usb_type_descriptor):
+                    usb_type = dev.get_info(rs.camera_info.usb_type_descriptor)
+                    print(f"USB Type: {usb_type}")
+                    if "2." in usb_type:
+                        print("WARNING: Camera connected to USB 2.0 - Performance will be limited!")
             print("="*60 + "\n")
             
-            # Configure streams - Lower resolution for terminal display
-            # Depth stream - 320x240 @ 30 FPS
-            self.config.enable_stream(rs.stream.depth, 320, 240, rs.format.z16, 30)
+            # Try different configurations based on USB connection
+            configs_to_try = [
+                # USB 3.0 configs
+                (640, 480, 30),
+                (640, 480, 15),
+                (640, 480, 6),
+                # USB 2.0 configs
+                (480, 270, 30),
+                (480, 270, 15),
+                (480, 270, 6),
+                (424, 240, 30),
+                (424, 240, 15),
+                (424, 240, 6),
+            ]
             
-            # Start streaming
-            profile = self.pipeline.start(self.config)
+            # Try each configuration
+            for width, height, fps in configs_to_try:
+                try:
+                    print(f"Trying depth stream: {width}x{height} @ {fps}fps...", end='')
+                    
+                    # Reset config
+                    self.config = rs.config()
+                    
+                    # Enable depth stream only
+                    self.config.enable_stream(rs.stream.depth, width, height, rs.format.z16, fps)
+                    
+                    # Try to start
+                    profile = self.pipeline.start(self.config)
+                    
+                    print(" SUCCESS!")
+                    print(f"Running at {width}x{height} @ {fps}fps")
+                    
+                    # Get depth sensor and scale
+                    depth_sensor = profile.get_device().first_depth_sensor()
+                    self.depth_scale = depth_sensor.get_depth_scale()
+                    print(f"Depth Scale: {self.depth_scale}")
+                    
+                    # Store resolution for later use
+                    self.width = width
+                    self.height = height
+                    
+                    print("Camera initialized successfully!")
+                    return True
+                    
+                except Exception as e:
+                    print(f" Failed: {str(e)}")
+                    if self.pipeline:
+                        try:
+                            self.pipeline.stop()
+                        except:
+                            pass
+                    continue
             
-            # Get depth sensor and scale
-            depth_sensor = profile.get_device().first_depth_sensor()
-            self.depth_scale = depth_sensor.get_depth_scale()
-            print(f"Depth Scale: {self.depth_scale}")
-            
-            print("Camera initialized successfully!")
-            return True
+            print("\nFailed to initialize with any configuration!")
+            print("Possible issues:")
+            print("1. USB bandwidth limitations - try a different USB port")
+            print("2. Power issues - camera may need more power than Pi can provide")
+            print("3. Try using a powered USB hub")
+            return False
             
         except Exception as e:
             print(f"Failed to initialize camera: {e}")
@@ -271,6 +325,39 @@ class D435TerminalDemo:
         print("Camera stopped.")
 
 
+def check_usb_connection():
+    """Check USB connection details"""
+    print("\nChecking USB connections...")
+    
+    try:
+        # Check lsusb for RealSense device
+        import subprocess
+        result = subprocess.run(['lsusb'], capture_output=True, text=True)
+        
+        for line in result.stdout.split('\n'):
+            if '8086:0b3a' in line or 'Intel' in line and 'RealSense' in line:
+                print(f"Found: {line}")
+                
+                # Get bus and device number
+                parts = line.split()
+                if len(parts) >= 4:
+                    bus = parts[1]
+                    device = parts[3].rstrip(':')
+                    
+                    # Check USB speed
+                    speed_cmd = f"lsusb -t | grep -B5 'Intel' | grep -E 'Bus|{device}'"
+                    speed_result = subprocess.run(speed_cmd, shell=True, capture_output=True, text=True)
+                    if speed_result.stdout:
+                        print(f"USB Tree Info:\n{speed_result.stdout}")
+    except Exception as e:
+        print(f"Could not check USB details: {e}")
+    
+    print("\nTo check USB 3.0 connection manually:")
+    print("1. Run: lsusb -t")
+    print("2. Look for '5000M' (USB 3.0) or '480M' (USB 2.0) next to the Intel device")
+    print("3. For best performance, ensure it shows '5000M'\n")
+
+
 def main():
     print("="*60)
     print("Intel RealSense D435 Depth Camera Demo - Terminal Version")
@@ -278,6 +365,9 @@ def main():
     
     if not REALSENSE_AVAILABLE:
         return
+    
+    # Check USB connection first
+    check_usb_connection()
     
     # Create demo instance
     demo = D435TerminalDemo()
