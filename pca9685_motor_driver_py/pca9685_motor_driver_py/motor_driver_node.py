@@ -20,6 +20,7 @@ Example for two motors:
 
 from __future__ import annotations
 from typing import Dict, Tuple
+import time  # Added for dead time control
 
 import rclpy
 from rclpy.node import Node
@@ -118,26 +119,36 @@ class MotorDriver(Node):
 
         forward_ch, backward_ch = self.motor_map[mid]
 
+        # IMPORTANT: Always ensure both channels are 0 before any change
+        # This prevents the motor driver protection from triggering
+        self.pca.channels[forward_ch].duty_cycle = 0
+        self.pca.channels[backward_ch].duty_cycle = 0
+        
+        # Critical: Give motor driver time to register the stop state
+        time.sleep(0.05)  # 50ms dead time
+
         # Dual-PWM control logic
         if dirn == "forward":
-            # PWM on forward channel, 0 on backward channel
-            self.pca.channels[forward_ch].duty_cycle = speed
+            # Set backward to 0 first (redundant but safe)
             self.pca.channels[backward_ch].duty_cycle = 0
-            self.get_logger().debug(
+            time.sleep(0.01)  # Small delay
+            # Then apply forward PWM
+            self.pca.channels[forward_ch].duty_cycle = speed
+            self.get_logger().info(
                 f"Motor {mid} forward: CH{forward_ch}={speed}, CH{backward_ch}=0"
             )
         elif dirn == "backward":
-            # 0 on forward channel, PWM on backward channel
+            # Set forward to 0 first (redundant but safe)
             self.pca.channels[forward_ch].duty_cycle = 0
+            time.sleep(0.01)  # Small delay
+            # Then apply backward PWM
             self.pca.channels[backward_ch].duty_cycle = speed
-            self.get_logger().debug(
+            self.get_logger().info(
                 f"Motor {mid} backward: CH{forward_ch}=0, CH{backward_ch}={speed}"
             )
         elif dirn == "brake":
-            # Both channels to 0
-            self.pca.channels[forward_ch].duty_cycle = 0
-            self.pca.channels[backward_ch].duty_cycle = 0
-            self.get_logger().debug(
+            # Both already set to 0 above
+            self.get_logger().info(
                 f"Motor {mid} brake: CH{forward_ch}=0, CH{backward_ch}=0"
             )
         else:
