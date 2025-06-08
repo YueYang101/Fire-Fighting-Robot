@@ -1,9 +1,0 @@
-# Service definition for getting thermal frame on demand
-# mlx90640_interfaces/srv/GetThermalFrame.srv
-
-# Request (empty - just trigger a reading)
----
-# Response
-bool success
-string message
-mlx90640_interfaces/ThermalFrame frame
