@@ -1,0 +1,11 @@
+thermal_camera_node:
+  ros__parameters:
+    # Publishing rate in Hz (how often to publish thermal frames)
+    # Note: Camera hardware runs at 1Hz, this controls ROS publishing
+    publish_rate: 0.5
+    
+    # Frame ID for header
+    frame_id: "thermal_camera"
+    
+    # Enable continuous publishing (set false for service-only mode)
+    enable_publisher: true
