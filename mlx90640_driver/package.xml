@@ -1,8 +1,3 @@
-# Backup the current file
-cp ~/ros2_ws/src/Fire-Fighting-Robot/mlx90640_driver/package.xml ~/ros2_ws/src/Fire-Fighting-Robot/mlx90640_driver/package.xml.bak
-
-# Create a new clean package.xml
-cat > ~/ros2_ws/src/Fire-Fighting-Robot/mlx90640_driver/package.xml << 'EOF'
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
@@ -22,25 +17,7 @@ cat > ~/ros2_ws/src/Fire-Fighting-Robot/mlx90640_driver/package.xml << 'EOF'
   <depend>std_msgs</depend>
   <depend>mlx90640_interfaces</depend>
   
-  <build_export_depend>ament_index_python</build_export_depend>
-  <exec_depend>ament_index_python</exec_depend>
-  
   <export>
     <build_type>ament_python</build_type>
   </export>
 </package>
-EOF
-
-# Test if the new file parses correctly
-python3 -c "from xml.etree import ElementTree; tree = ElementTree.parse('~/ros2_ws/src/Fire-Fighting-Robot/mlx90640_driver/package.xml'); print('Package name:', tree.find('.//name').text)"
-
-# Now rebuild
-cd ~/ros2_ws
-rm -rf build/mlx90640_driver install/mlx90640_driver
-colcon build --packages-select mlx90640_driver
-
-# Source and test
-source /opt/ros/humble/setup.bash
-source ~/ros2_ws/install/setup.bash
-ros2 pkg list | grep mlx90640
-ros2 run mlx90640_driver thermal_camera_node
