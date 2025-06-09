@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thermal Camera - Robot Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #333;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 300;
+            letter-spacing: 2px;
+            background: linear-gradient(45deg, #ff6b6b, #ffd93d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-button {
+            padding: 10px 20px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 10px;
+            color: #fff;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .back-button:hover {
+            background: #3a3a3a;
+            transform: translateY(-2px);
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 10px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff3333;
+            box-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .status-indicator.connected {
+            background: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .main-container {
+            flex: 1;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-height: calc(100vh - 200px);
+        }
+
+        .visualization-panel {
+            background: #1a1a1a;
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 1.5em;
+            color: #ff6b6b;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: #0a0a0a;
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        .controls {
+            background: #1a1a1a;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #333;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .control-button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            background: #2a2a2a;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1em;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .control-button:hover {
+            background: #3a3a3a;
+            transform: translateY(-2px);
+        }
+
+        .control-button.active {
+            background: linear-gradient(135deg, #ff6b6b, #ff4444);
+            box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .info-panel {
+            background: #1a1a1a;
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #333;
+            margin-top: 20px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .info-item {
+            background: #252525;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+
+        .info-label {
+            color: #888;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.3em;
+            font-weight: 500;
+            color: #ff6b6b;
+        }
+
+        .temperature-scale {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding: 10px;
+            background: #252525;
+            border-radius: 10px;
+        }
+
+        .scale-gradient {
+            flex: 1;
+            height: 20px;
+            border-radius: 5px;
+            background: linear-gradient(to right, 
+                #000080, #0000ff, #00ffff, #00ff00, 
+                #ffff00, #ff8800, #ff0000, #ffffff);
+        }
+
+        .scale-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 0.8em;
+            color: #888;
+        }
+
+        .hotspot-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .hotspot-item {
+            background: #252525;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 3px solid #ff6b6b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>Thermal Camera Visualization</h1>
+        <a href="/" class="back-button">← Back to Dashboard</a>
+    </div>
+
+    <div class="status-bar">
+        <div class="status-item">
+            <span>Camera Status:</span>
+            <div class="status-indicator" id="thermalStatus"></div>
+            <span id="thermalStatusText">Disconnected</span>
+        </div>
+        <div class="status-item">
+            <span>Frame Rate:</span>
+            <span id="frameRate">0 FPS</span>
+        </div>
+        <div class="status-item">
+            <span>Frame Count:</span>
+            <span id="frameCount">0</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Thermal Heatmap -->
+        <div class="visualization-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Thermal Heatmap</h2>
+                <span id="heatmapSize">32x24</span>
+            </div>
+            <div class="canvas-container">
+                <canvas id="thermalCanvas"></canvas>
+            </div>
+            <div class="temperature-scale">
+                <span id="minTempLabel">20°C</span>
+                <div class="scale-gradient"></div>
+                <span id="maxTempLabel">30°C</span>
+            </div>
+        </div>
+
+        <!-- Analysis Panel -->
+        <div class="visualization-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Thermal Analysis</h2>
+            </div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Min Temperature</div>
+                    <div class="info-value" id="minTemp">-°C</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Max Temperature</div>
+                    <div class="info-value" id="maxTemp">-°C</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Average</div>
+                    <div class="info-value" id="avgTemp">-°C</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Center</div>
+                    <div class="info-value" id="centerTemp">-°C</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <h3 style="color: #ff6b6b; margin-bottom: 10px;">Hotspot Detection</h3>
+                <div class="info-item">
+                    <div class="info-label">Hotspots Detected</div>
+                    <div class="info-value" id="hotspotCount">0</div>
+                </div>
+                <div class="hotspot-list" id="hotspotList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="control-button" id="startBtn" onclick="startThermal()">Start Stream</button>
+        <button class="control-button" id="stopBtn" onclick="stopThermal()" disabled>Stop Stream</button>
+        <button class="control-button" onclick="captureFrame()">Capture Frame</button>
+        <button class="control-button" onclick="saveImage()">Save Image</button>
+        <button class="control-button" id="autoScaleBtn" onclick="toggleAutoScale()">Auto Scale: ON</button>
+        <button class="control-button" onclick="resetView()">Reset View</button>
+    </div>
+
+    <script>
+        // WebSocket connection
+        const socket = io();
+        
+        // Canvas and context
+        const canvas = document.getElementById('thermalCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // State
+        let streaming = false;
+        let autoScale = true;
+        let latestFrameData = null;
+        
+        // Performance monitoring
+        let frameCount = 0;
+        let lastFPSUpdate = Date.now();
+        let fps = 0;
+        
+        // Temperature range for manual scaling
+        let manualMinTemp = 20;
+        let manualMaxTemp = 35;
+        
+        // Socket event handlers
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+        
+        socket.on('thermal_data', (data) => {
+            latestFrameData = data;
+            updateVisualization(data);
+            
+            // Update frame count and FPS
+            frameCount++;
+            const now = Date.now();
+            if (now - lastFPSUpdate > 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                lastFPSUpdate = now;
+                document.getElementById('frameRate').textContent = `${fps} FPS`;
+            }
+        });
+        
+        // Color mapping function
+        function temperatureToColor(temp, minTemp, maxTemp) {
+            // Normalize temperature to 0-1 range
+            const normalized = (temp - minTemp) / (maxTemp - minTemp);
+            const clamped = Math.max(0, Math.min(1, normalized));
+            
+            // Color gradient: cold (blue) -> warm (red/white)
+            let r, g, b;
+            
+            if (clamped < 0.25) {
+                // Blue to cyan
+                const t = clamped * 4;
+                r = 0;
+                g = Math.floor(t * 255);
+                b = 255;
+            } else if (clamped < 0.5) {
+                // Cyan to green
+                const t = (clamped - 0.25) * 4;
+                r = 0;
+                g = 255;
+                b = Math.floor((1 - t) * 255);
+            } else if (clamped < 0.75) {
+                // Green to yellow
+                const t = (clamped - 0.5) * 4;
+                r = Math.floor(t * 255);
+                g = 255;
+                b = 0;
+            } else {
+                // Yellow to red to white
+                const t = (clamped - 0.75) * 4;
+                if (t < 0.5) {
+                    r = 255;
+                    g = Math.floor((1 - t * 2) * 255);
+                    b = 0;
+                } else {
+                    r = 255;
+                    g = Math.floor((t - 0.5) * 2 * 255);
+                    b = Math.floor((t - 0.5) * 2 * 255);
+                }
+            }
+            
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+        
+        // Update visualization
+        function updateVisualization(data) {
+            if (!data || !data.thermal_data) return;
+            
+            // Update info panel
+            document.getElementById('minTemp').textContent = `${data.min_temp.toFixed(1)}°C`;
+            document.getElementById('maxTemp').textContent = `${data.max_temp.toFixed(1)}°C`;
+            document.getElementById('avgTemp').textContent = `${data.avg_temp.toFixed(1)}°C`;
+            document.getElementById('centerTemp').textContent = `${data.center_temp.toFixed(1)}°C`;
+            document.getElementById('frameCount').textContent = data.frame_count || 0;
+            document.getElementById('hotspotCount').textContent = data.hotspot_count || 0;
+            
+            // Update temperature scale
+            const minTemp = autoScale ? data.min_temp : manualMinTemp;
+            const maxTemp = autoScale ? data.max_temp : manualMaxTemp;
+            document.getElementById('minTempLabel').textContent = `${minTemp.toFixed(1)}°C`;
+            document.getElementById('maxTempLabel').textContent = `${maxTemp.toFixed(1)}°C`;
+            
+            // Draw heatmap
+            drawHeatmap(data.thermal_data, data.width, data.height, minTemp, maxTemp);
+            
+            // Update hotspot list
+            updateHotspotList(data.hotspots || []);
+        }
+        
+        // Draw thermal heatmap
+        function drawHeatmap(thermalData, width, height, minTemp, maxTemp) {
+            // Set canvas size with scaling
+            const scale = 20; // Each pixel becomes 10x10
+            canvas.width = width * scale;
+            canvas.height = height * scale;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw each temperature pixel
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const temp = thermalData[y][x];
+                    const color = temperatureToColor(temp, minTemp, maxTemp);
+                    
+                    ctx.fillStyle = color;
+                    ctx.fillRect(x * scale, y * scale, scale, scale);
+                }
+            }
+            
+            // Draw grid lines (optional)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= width; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * scale, 0);
+                ctx.lineTo(x * scale, height * scale);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= height; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * scale);
+                ctx.lineTo(width * scale, y * scale);
+                ctx.stroke();
+            }
+            
+            // Draw center crosshair
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 2;
+            const centerX = width * scale / 2;
+            const centerY = height * scale / 2;
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX - 20, centerY);
+            ctx.lineTo(centerX + 20, centerY);
+            ctx.moveTo(centerX, centerY - 20);
+            ctx.lineTo(centerX, centerY + 20);
+            ctx.stroke();
+        }
+        
+        // Update hotspot list
+        function updateHotspotList(hotspots) {
+            const listContainer = document.getElementById('hotspotList');
+            listContainer.innerHTML = '';
+            
+            hotspots.slice(0, 10).forEach((hotspot, index) => {
+                const item = document.createElement('div');
+                item.className = 'hotspot-item';
+                item.innerHTML = `
+                    <span>Hotspot ${index + 1} (${hotspot.x}, ${hotspot.y})</span>
+                    <span>${hotspot.temp.toFixed(1)}°C</span>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+        
+        // Control functions
+        async function startThermal() {
+            try {
+                const response = await fetch('/api/thermal/subscribe', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    streaming = true;
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    document.getElementById('thermalStatus').classList.add('connected');
+                    document.getElementById('thermalStatusText').textContent = 'Connected';
+                }
+            } catch (error) {
+                console.error('Failed to start thermal camera:', error);
+            }
+        }
+        
+        async function stopThermal() {
+            try {
+                const response = await fetch('/api/thermal/unsubscribe', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    streaming = false;
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    document.getElementById('thermalStatus').classList.remove('connected');
+                    document.getElementById('thermalStatusText').textContent = 'Disconnected';
+                }
+            } catch (error) {
+                console.error('Failed to stop thermal camera:', error);
+            }
+        }
+        
+        async function captureFrame() {
+            try {
+                const response = await fetch('/api/thermal/frame');
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateVisualization(result.data);
+                }
+            } catch (error) {
+                console.error('Failed to capture frame:', error);
+            }
+        }
+        
+        function saveImage() {
+            const link = document.createElement('a');
+            link.download = `thermal_${new Date().toISOString()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        function toggleAutoScale() {
+            autoScale = !autoScale;
+            document.getElementById('autoScaleBtn').textContent = `Auto Scale: ${autoScale ? 'ON' : 'OFF'}`;
+            if (latestFrameData) {
+                updateVisualization(latestFrameData);
+            }
+        }
+        
+        function resetView() {
+            manualMinTemp = 20;
+            manualMaxTemp = 35;
+            if (!autoScale && latestFrameData) {
+                updateVisualization(latestFrameData);
+            }
+        }
+        
+        // Add mouse hover to show temperature
+        canvas.addEventListener('mousemove', (e) => {
+            if (!latestFrameData || !latestFrameData.thermal_data) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const x = Math.floor((e.clientX - rect.left) * scaleX / 10);
+            const y = Math.floor((e.clientY - rect.top) * scaleY / 10);
+            
+            if (x >= 0 && x < latestFrameData.width && y >= 0 && y < latestFrameData.height) {
+                const temp = latestFrameData.thermal_data[y][x];
+                canvas.title = `Temperature: ${temp.toFixed(1)}°C at (${x}, ${y})`;
+            }
+        });
+    </script>
+</body>
+</html>

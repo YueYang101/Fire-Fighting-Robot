@@ -518,26 +518,26 @@
                 </div>
             </div>
 
-            <!-- Camera (Future) -->
-            <div class="component-card disabled">
-                <span class="component-icon camera-icon">📷</span>
-                <h2 class="component-title">Camera Feed</h2>
+            <!-- Thermal Camera -->
+            <div class="component-card" onclick="navigateTo('/thermal')">
+                <span class="component-icon camera-icon">🌡️</span>
+                <h2 class="component-title">Thermal Camera</h2>
                 <p class="component-description">
-                    Live video streaming and fire detection using computer vision. 
-                    Coming soon...
+                    MLX90640 thermal imaging with real-time heatmap visualization. 
+                    Monitor temperatures and detect heat signatures.
                 </p>
-                <div class="component-status">
+                <div class="component-status" id="thermalStatus">
                     <div class="status-indicator"></div>
-                    <span>Not Available</span>
+                    <span>Click to Activate</span>
                 </div>
             </div>
 
             <!-- Sensors (Future) -->
             <div class="component-card disabled">
-                <span class="component-icon sensor-icon">🌡️</span>
-                <h2 class="component-title">Sensors</h2>
+                <span class="component-icon sensor-icon">🔥</span>
+                <h2 class="component-title">Fire Sensors</h2>
                 <p class="component-description">
-                    Temperature, smoke, and flame sensors for fire detection. 
+                    Smoke, flame, and gas sensors for comprehensive fire detection. 
                     Coming soon...
                 </p>
                 <div class="component-status">
@@ -691,6 +691,12 @@
                         const lidarStatus = document.getElementById('lidarStatus');
                         lidarStatus.classList.add('active');
                         lidarStatus.innerHTML = '<div class="status-indicator connected"></div><span>Active</span>';
+                    }
+                    if (data.components.thermal) {
+                        activeCount++;
+                        const thermalStatus = document.getElementById('thermalStatus');
+                        thermalStatus.classList.add('active');
+                        thermalStatus.innerHTML = '<div class="status-indicator connected"></div><span>Active</span>';
                     }
                 }
                 document.getElementById('activeComponents').textContent = activeCount;

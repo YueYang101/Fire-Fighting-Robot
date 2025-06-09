@@ -22,6 +22,7 @@ from backend.config_manager import get_config_manager
 # Import ROS bridge components
 from backend.ros_bridge import get_ros_bridge, get_motor_controller
 from backend.sensors.lidar import get_lidar_sensor
+from backend.sensors.thermal_camera import get_thermal_camera_sensor
 
 # Create Flask app
 app = Flask(__name__, 
@@ -45,6 +46,7 @@ CONFIG = config_manager.get_all()
 ros_bridge = get_ros_bridge(CONFIG["PI_IP"], CONFIG["ROS_BRIDGE_PORT"])
 motor_controller = get_motor_controller()
 lidar_sensor = get_lidar_sensor()
+thermal_camera_sensor = get_thermal_camera_sensor()
 
 # Lidar data streaming state
 lidar_streaming = False
@@ -67,6 +69,11 @@ def motors_page():
 def lidar_page():
     """Serve the lidar visualization interface"""
     return render_template('lidar_visualization.html')
+
+@app.route('/thermal')
+def thermal_page():
+    """Serve the thermal camera interface"""
+    return render_template('thermal_camera.html')
 
 # =============================================================================
 # MOTOR CONTROL API ROUTES
@@ -196,6 +203,74 @@ def unsubscribe_lidar():
     return jsonify({"success": True, "message": "Lidar subscription stopped"})
 
 # =============================================================================
+# THERMAL CAMERA API ROUTES
+# =============================================================================
+
+@app.route('/api/thermal/status', methods=['GET'])
+def get_thermal_status():
+    """Get thermal camera sensor status"""
+    latest_frame = thermal_camera_sensor.get_latest_frame()
+    
+    return jsonify({
+        "connected": thermal_camera_sensor.subscription_active,
+        "has_data": latest_frame is not None,
+        "timestamp": latest_frame["timestamp"] if latest_frame else None
+    })
+
+@app.route('/api/thermal/latest', methods=['GET'])
+def get_latest_thermal_frame():
+    """Get the most recent thermal frame data"""
+    frame_data = thermal_camera_sensor.get_latest_frame()
+    
+    if frame_data:
+        return jsonify({
+            "success": True,
+            "data": frame_data
+        })
+    else:
+        return jsonify({
+            "success": False,
+            "error": "No thermal data available"
+        }), 404
+
+@app.route('/api/thermal/frame', methods=['GET'])
+def get_thermal_frame():
+    """Get a single thermal frame via service call"""
+    frame_data = thermal_camera_sensor.get_thermal_frame_once()
+    
+    if frame_data:
+        return jsonify({
+            "success": True,
+            "data": frame_data
+        })
+    else:
+        return jsonify({
+            "success": False,
+            "error": "Failed to capture thermal frame"
+        }), 500
+
+@app.route('/api/thermal/subscribe', methods=['POST'])
+def subscribe_thermal():
+    """Start thermal camera data subscription"""
+    def thermal_callback(frame_data):
+        """Emit thermal data through WebSocket"""
+        socketio.emit('thermal_data', frame_data)
+    
+    success = thermal_camera_sensor.subscribe(callback=thermal_callback)
+    
+    if success:
+        return jsonify({"success": True, "message": "Thermal camera subscription started"})
+    else:
+        return jsonify({"success": False, "error": "Failed to subscribe to thermal camera"}), 500
+
+@app.route('/api/thermal/unsubscribe', methods=['POST'])
+def unsubscribe_thermal():
+    """Stop thermal camera data subscription"""
+    thermal_camera_sensor.unsubscribe()
+    
+    return jsonify({"success": True, "message": "Thermal camera subscription stopped"})
+
+# =============================================================================
 # SYSTEM STATUS ROUTES
 # =============================================================================
 
@@ -213,7 +288,8 @@ def get_system_status():
         },
         "components": {
             "motors": True,
-            "lidar": lidar_sensor.subscription_active
+            "lidar": lidar_sensor.subscription_active,
+            "thermal": thermal_camera_sensor.subscription_active
         }
     }), 200 if ros_connected else 503
 
@@ -255,10 +331,11 @@ def update_config():
         config_manager.update_config(config_updates)
         
         # Update ROS bridge connection
-        global ros_bridge, motor_controller, lidar_sensor
+        global ros_bridge, motor_controller, lidar_sensor, thermal_camera_sensor
         ros_bridge = get_ros_bridge(CONFIG["PI_IP"], CONFIG["ROS_BRIDGE_PORT"])
         motor_controller = get_motor_controller()
         lidar_sensor = get_lidar_sensor()
+        thermal_camera_sensor = get_thermal_camera_sensor()
         
         logger.info(f"Configuration updated and saved: IP={new_ip}, Port={new_port}")
         
