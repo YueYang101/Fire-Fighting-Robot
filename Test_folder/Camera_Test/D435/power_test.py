@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 power test
 """
 Intel RealSense D435 Power and Connection Diagnostics for Raspberry Pi
 Checks power status, USB connection, and helps diagnose frame timeout issues
