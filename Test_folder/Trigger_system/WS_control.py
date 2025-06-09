@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Linear Actuator Control using PCA9685 with Keyboard Control
-W key - Extend (hold to continue, release to stop)
-S key - Retract (hold to continue, release to stop)
+W key - Extend at FULL SPEED (hold to continue, release to stop)
+S key - Retract at FULL SPEED (hold to continue, release to stop)
 Q key - Quit program
 Total extension time is limited to 8 seconds cumulative
 """
@@ -114,7 +114,7 @@ class LinearActuatorPCA9685:
         return self.get_remaining_extend_time() > 0
     
     def extend(self, speed=100):
-        """Extend the linear actuator"""
+        """Extend the linear actuator at specified speed (default 100%)"""
         if not self.can_extend():
             print(f"\n⚠️  Cannot extend: Cumulative limit of {self.max_extend_time}s reached!")
             return False
@@ -132,11 +132,11 @@ class LinearActuatorPCA9685:
         self.is_moving = True
         
         remaining = self.get_remaining_extend_time()
-        print(f"\nExtending... (Remaining time: {remaining:.1f}s)")
+        print(f"\nExtending at {speed}% speed... (Remaining time: {remaining:.1f}s)")
         return True
     
     def retract(self, speed=100):
-        """Retract the linear actuator (no time limit)"""
+        """Retract the linear actuator at specified speed (default 100%)"""
         # Convert percentage to 16-bit duty cycle
         duty_cycle = int((speed / 100.0) * 65535)
         
@@ -149,7 +149,7 @@ class LinearActuatorPCA9685:
         self.current_direction = "retract"
         self.is_moving = True
         
-        print(f"\nRetracting... (No time limit)")
+        print(f"\nRetracting at {speed}% speed... (No time limit)")
         return True
     
     def stop(self):
@@ -195,8 +195,8 @@ def main():
     print("Linear Actuator Keyboard Control (PCA9685)")
     print("="*50)
     print("\nControls:")
-    print("  W     - Hold to EXTEND (release to stop)")
-    print("  S     - Hold to RETRACT (release to stop)")
+    print("  W     - Hold to EXTEND at FULL SPEED (release to stop)")
+    print("  S     - Hold to RETRACT at FULL SPEED (release to stop)")
     print("  Q     - Quit program")
     print("  Space - Emergency STOP")
     print("\n⚠️  Total extension time is limited to 8 seconds")
@@ -225,10 +225,10 @@ def main():
                 remaining = actuator.get_remaining_extend_time()
                 if actuator.current_direction == "extend":
                     elapsed = time.time() - actuator.movement_start_time
-                    print(f"\r[EXTENDING] Time: {elapsed:.1f}s | Remaining: {remaining:.1f}s | Total used: {actuator.total_extend_time + elapsed:.1f}s", end='', flush=True)
+                    print(f"\r[EXTENDING @ 100%] Time: {elapsed:.1f}s | Remaining: {remaining - elapsed:.1f}s | Total used: {actuator.total_extend_time + elapsed:.1f}s", end='', flush=True)
                 elif actuator.current_direction == "retract":
                     elapsed = time.time() - actuator.movement_start_time
-                    print(f"\r[RETRACTING] Time: {elapsed:.1f}s | Extension budget remaining: {remaining:.1f}s", end='', flush=True)
+                    print(f"\r[RETRACTING @ 100%] Time: {elapsed:.1f}s | Extension budget remaining: {remaining:.1f}s", end='', flush=True)
             time.sleep(0.1)
     
     status_thread = threading.Thread(target=status_display, daemon=True)
@@ -252,12 +252,12 @@ def main():
                 
             elif key == 'w':
                 if not key_states['w'] and not key_states['s']:  # Not already extending and not retracting
-                    if actuator.extend():
+                    if actuator.extend(speed=100):  # FULL SPEED
                         key_states['w'] = True
                         
             elif key == 's':
                 if not key_states['s'] and not key_states['w']:  # Not already retracting and not extending
-                    if actuator.retract():
+                    if actuator.retract(speed=100):  # FULL SPEED
                         key_states['s'] = True
             
             # Check for key releases
