@@ -2,7 +2,7 @@
 import subprocess
 import time
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess
+from launch.actions import ExecuteProcess, TimerAction
 from launch_ros.actions import Node
 
 def generate_launch_description():
@@ -13,9 +13,20 @@ def generate_launch_description():
     subprocess.run(['pkill', '-9', '-f', 'motor_driver_node'], capture_output=True)
     subprocess.run(['pkill', '-9', '-f', 'ydlidar'], capture_output=True)
     subprocess.run(['pkill', '-9', '-f', 'thermal_camera_node'], capture_output=True)
-    subprocess.run(['pkill', '-9', '-f', 'servo_controller_node'], capture_output=True)  # Add servo cleanup
+    subprocess.run(['pkill', '-9', '-f', 'servo_controller_node'], capture_output=True)
     time.sleep(1)  # Give processes time to fully terminate
     print("Cleanup complete. Starting fresh...")
+    
+    # Define the servo controller node
+    servo_controller = Node(
+        package='servo_controller_py',
+        executable='servo_controller_node',
+        name='servo_controller',
+        parameters=['/home/ubuntu-robot-pi4/ros2_ws/src/Fire-Fighting-Robot/servo_controller_py/config/servo_config.yaml'],
+        output='screen',
+        respawn=True,
+        respawn_delay=2.0
+    )
     
     return LaunchDescription([
         # ROSbridge WebSocket - start nodes directly
@@ -47,15 +58,6 @@ def generate_launch_description():
             output='screen'
         ),
         
-        # Servo Controller Node - NEW
-        Node(
-            package='servo_controller_py',
-            executable='servo_controller_node',
-            name='servo_controller',
-            parameters=['/home/ubuntu-robot-pi4/ros2_ws/src/Fire-Fighting-Robot/servo_controller_py/config/servo_config.yaml'],
-            output='screen'
-        ),
-        
         # YDLIDAR
         ExecuteProcess(
             cmd=['ros2', 'launch', 'ydlidar_ros2_driver', 'ydlidar_launch.py',
@@ -67,5 +69,11 @@ def generate_launch_description():
         ExecuteProcess(
             cmd=['/home/ubuntu-robot-pi4/ros2_ws/install/mlx90640_driver/bin/thermal_camera_node'],
             output='screen'
+        ),
+        
+        # Servo Controller Node - Start with 3 second delay to avoid conflicts
+        TimerAction(
+            period=3.0,
+            actions=[servo_controller]
         )
     ])
