@@ -1,0 +1,6 @@
+# Service for setting servo positions
+float32 pan_angle   # Target pan angle in degrees (0-270)
+float32 tilt_angle  # Target tilt angle in degrees (0-270)
+---
+bool success        # True if command was accepted
+string message      # Response message

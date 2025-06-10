@@ -1,0 +1,15 @@
+servo_controller:
+  ros__parameters:
+    # GPIO pin numbers (BCM numbering)
+    pan_pin: 13    # GPIO 13 for pan servo
+    tilt_pin: 12   # GPIO 12 for tilt servo
+    
+    # PWM settings
+    pwm_frequency: 50  # Hz
+    
+    # Angle limits
+    min_angle: 0     # degrees
+    max_angle: 270   # degrees
+    
+    # Movement speed
+    default_speed: 50  # degrees per second

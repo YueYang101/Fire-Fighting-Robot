@@ -1,0 +1,6 @@
+# Service for setting servo movement speeds
+float32 pan_speed   # Pan speed in degrees per second (0 = keep current)
+float32 tilt_speed  # Tilt speed in degrees per second (0 = keep current)
+---
+bool success        # True if command was accepted
+string message      # Response message
