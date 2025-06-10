@@ -23,7 +23,7 @@ from backend.config_manager import get_config_manager
 from backend.ros_bridge import get_ros_bridge, get_motor_controller
 from backend.sensors.lidar import get_lidar_sensor
 from backend.sensors.thermal_camera import get_thermal_camera_sensor
-from backend.sensors.servo_control import ServoController
+from backend.motors.servo_control import ServoController
 
 # Create Flask app
 app = Flask(__name__, 
@@ -531,7 +531,7 @@ def initialize_system():
     logger.info("Initializing system components...")
     
     # Set WebSocket handler for servo updates
-    async def servo_websocket_handler(data):
+    def servo_websocket_handler(data):
         """Handle servo state updates"""
         socketio.emit('servo_state', data)
     

@@ -3,11 +3,11 @@ Servo Control Interface for Aiming System
 Controls pan and tilt servos through ROS2 topics
 """
 
-import asyncio
 import json
 import logging
 from typing import Dict, Any, Optional, Callable
 from datetime import datetime
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +45,27 @@ class ServoController:
         """Set the WebSocket handler for sending updates"""
         self.websocket_handler = handler
     
-    async def move_to_position(self, pan: float, tilt: float) -> Dict[str, Any]:
+    def move_to_position(self, pan: float, tilt: float) -> Dict[str, Any]:
         """
-        Move servos to specified position
+        Move servos to specified position (synchronous version)
+        
+        Args:
+            pan: Pan angle (75-195 degrees)
+            tilt: Tilt angle (75-195 degrees)
+            
+        Returns:
+            Status dictionary
+        """
+        # Run async version in sync context
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(self._async_move_to_position(pan, tilt))
+        loop.close()
+        return result
+    
+    async def _async_move_to_position(self, pan: float, tilt: float) -> Dict[str, Any]:
+        """
+        Move servos to specified position (async version)
         
         Args:
             pan: Pan angle (75-195 degrees)
@@ -71,10 +89,19 @@ class ServoController:
             self.tilt_moving = True
         
         # Send ROS command if bridge available
-        if self.ros_bridge and self.ros_bridge.connected:
+        if self.ros_bridge:
             try:
-                await self.ros_bridge.publish_servo_position(pan, tilt)
-                logger.info(f"Servo command sent: pan={pan}, tilt={tilt}")
+                from backend.ros_bridge import get_servo_publisher
+                servo_pub = get_servo_publisher()
+                success = servo_pub.publish_position(pan, tilt)
+                if success:
+                    logger.info(f"Servo command sent: pan={pan}, tilt={tilt}")
+                else:
+                    logger.error("Failed to publish servo command")
+                    return {
+                        'success': False,
+                        'error': 'Failed to publish servo command'
+                    }
             except Exception as e:
                 logger.error(f"Failed to send servo command: {e}")
                 return {
@@ -82,8 +109,11 @@ class ServoController:
                     'error': str(e)
                 }
         
-        # Simulate movement completion after a delay
-        asyncio.create_task(self._simulate_movement(pan, tilt))
+        # Update positions immediately for UI feedback
+        self.pan_angle = pan
+        self.tilt_angle = tilt
+        self.pan_moving = False
+        self.tilt_moving = False
         
         return {
             'success': True,
@@ -91,43 +121,6 @@ class ServoController:
             'tilt_angle': tilt,
             'message': f"Moving to pan={pan}°, tilt={tilt}°"
         }
-    
-    async def _simulate_movement(self, target_pan: float, target_tilt: float):
-        """Simulate servo movement with gradual position updates"""
-        steps = 10
-        pan_step = (target_pan - self.pan_angle) / steps
-        tilt_step = (target_tilt - self.tilt_angle) / steps
-        
-        for i in range(steps):
-            await asyncio.sleep(0.05)  # 50ms per step
-            
-            # Update positions
-            if self.pan_moving:
-                self.pan_angle += pan_step
-            if self.tilt_moving:
-                self.tilt_angle += tilt_step
-            
-            # Send update via WebSocket
-            await self._send_state_update()
-        
-        # Final position
-        self.pan_angle = target_pan
-        self.tilt_angle = target_tilt
-        self.pan_moving = False
-        self.tilt_moving = False
-        
-        # Send final update
-        await self._send_state_update()
-        logger.info(f"Servo movement completed: pan={self.pan_angle}, tilt={self.tilt_angle}")
-    
-    async def _send_state_update(self):
-        """Send current state via WebSocket"""
-        if self.websocket_handler:
-            state = self.get_state()
-            await self.websocket_handler({
-                'type': 'servo_state',
-                **state
-            })
     
     def get_state(self) -> Dict[str, Any]:
         """Get current servo state"""
@@ -142,35 +135,33 @@ class ServoController:
             'timestamp': datetime.now().isoformat()
         }
     
-    async def center_position(self) -> Dict[str, Any]:
+    def center_position(self) -> Dict[str, Any]:
         """Move servos to center position (135, 135)"""
-        return await self.move_to_position(135.0, 135.0)
+        return self.move_to_position(135.0, 135.0)
     
-    async def move_left(self) -> Dict[str, Any]:
+    def move_left(self) -> Dict[str, Any]:
         """Move to left position"""
-        return await self.move_to_position(75.0, 135.0)
+        return self.move_to_position(75.0, 135.0)
     
-    async def move_right(self) -> Dict[str, Any]:
+    def move_right(self) -> Dict[str, Any]:
         """Move to right position"""
-        return await self.move_to_position(195.0, 135.0)
+        return self.move_to_position(195.0, 135.0)
     
-    async def move_up(self) -> Dict[str, Any]:
+    def move_up(self) -> Dict[str, Any]:
         """Move to up position"""
-        return await self.move_to_position(135.0, 195.0)
+        return self.move_to_position(135.0, 195.0)
     
-    async def move_down(self) -> Dict[str, Any]:
+    def move_down(self) -> Dict[str, Any]:
         """Move to down position"""
-        return await self.move_to_position(135.0, 75.0)
+        return self.move_to_position(135.0, 75.0)
     
-    async def emergency_stop(self):
+    def emergency_stop(self):
         """Stop all servo movement"""
         self.pan_moving = False
         self.tilt_moving = False
         self.target_pan = self.pan_angle
         self.target_tilt = self.tilt_angle
-        
         logger.warning("Emergency stop activated for servos")
-        await self._send_state_update()
     
     def process_ros_feedback(self, data: Dict[str, Any]):
         """Process feedback from ROS about actual servo positions"""
@@ -185,23 +176,23 @@ class ServoController:
         if abs(self.tilt_angle - self.target_tilt) < 1.0:
             self.tilt_moving = False
     
-    async def handle_websocket_command(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle commands from WebSocket"""
+    def handle_websocket_command(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle commands from WebSocket (synchronous)"""
         action = data.get('action')
         
         if action == 'move':
             pan = data.get('pan_angle', self.pan_angle)
             tilt = data.get('tilt_angle', self.tilt_angle)
-            return await self.move_to_position(pan, tilt)
+            return self.move_to_position(pan, tilt)
         
         elif action == 'center':
-            return await self.center_position()
+            return self.center_position()
         
         elif action == 'get_state':
             return self.get_state()
         
         elif action == 'emergency_stop':
-            await self.emergency_stop()
+            self.emergency_stop()
             return {'success': True, 'message': 'Emergency stop activated'}
         
         else:
