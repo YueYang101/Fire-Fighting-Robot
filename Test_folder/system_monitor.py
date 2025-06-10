@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Raspberry Pi System and ROS Monitor
-Monitors system load, temperature, runtime, and ROS metrics
-Can be run as a standalone script or as a ROS node
+Raspberry Pi System Monitor
+Monitors system load, temperature, runtime, and other metrics
+Pure system monitoring without ROS dependencies
 """
 
 import psutil
@@ -13,17 +13,6 @@ import subprocess
 from datetime import datetime, timedelta
 from collections import defaultdict
 
-# ROS imports (optional - will work without ROS)
-try:
-    import rospy
-    from std_msgs.msg import String, Float32
-    import rostopic
-    import rosnode
-    ROS_AVAILABLE = True
-except ImportError:
-    ROS_AVAILABLE = False
-    print("ROS not available - running in standalone mode")
-
 
 class SystemMonitor:
     """Monitor system metrics on Raspberry Pi"""
@@ -31,7 +20,8 @@ class SystemMonitor:
     def __init__(self):
         self.start_time = time.time()
         self.cpu_temps = []
-        self.ros_topic_stats = defaultdict(dict)
+        self.cpu_history = []
+        self.memory_history = []
         
     def get_cpu_temperature(self):
         """Get CPU temperature on Raspberry Pi"""
@@ -66,12 +56,22 @@ class SystemMonitor:
         
         return -1  # Temperature not available
     
+    def get_gpu_temperature(self):
+        """Get GPU temperature on Raspberry Pi"""
+        try:
+            result = subprocess.check_output(['vcgencmd', 'measure_temp', 'gpu']).decode()
+            temp = float(result.replace('temp=', '').replace("'C\n", ''))
+            return temp
+        except:
+            return -1
+    
     def get_system_load(self):
         """Get comprehensive system load information"""
         return {
             'cpu_percent': psutil.cpu_percent(interval=1),
             'cpu_percent_per_core': psutil.cpu_percent(interval=1, percpu=True),
             'cpu_count': psutil.cpu_count(),
+            'cpu_count_logical': psutil.cpu_count(logical=True),
             'cpu_freq': psutil.cpu_freq()._asdict() if psutil.cpu_freq() else None,
             'load_average': {
                 '1min': psutil.getloadavg()[0],
@@ -82,20 +82,41 @@ class SystemMonitor:
                 'percent': psutil.virtual_memory().percent,
                 'used_gb': psutil.virtual_memory().used / (1024**3),
                 'total_gb': psutil.virtual_memory().total / (1024**3),
-                'available_gb': psutil.virtual_memory().available / (1024**3)
+                'available_gb': psutil.virtual_memory().available / (1024**3),
+                'free_gb': psutil.virtual_memory().free / (1024**3),
+                'cached_gb': psutil.virtual_memory().cached / (1024**3) if hasattr(psutil.virtual_memory(), 'cached') else 0,
+                'buffers_gb': psutil.virtual_memory().buffers / (1024**3) if hasattr(psutil.virtual_memory(), 'buffers') else 0
             },
             'swap': {
                 'percent': psutil.swap_memory().percent,
                 'used_gb': psutil.swap_memory().used / (1024**3),
-                'total_gb': psutil.swap_memory().total / (1024**3)
+                'total_gb': psutil.swap_memory().total / (1024**3),
+                'free_gb': psutil.swap_memory().free / (1024**3)
             },
-            'disk': {
-                'percent': psutil.disk_usage('/').percent,
-                'used_gb': psutil.disk_usage('/').used / (1024**3),
-                'total_gb': psutil.disk_usage('/').total / (1024**3),
-                'free_gb': psutil.disk_usage('/').free / (1024**3)
-            }
+            'disk': self.get_disk_usage()
         }
+    
+    def get_disk_usage(self):
+        """Get disk usage for all mounted partitions"""
+        disk_info = {}
+        partitions = psutil.disk_partitions()
+        
+        for partition in partitions:
+            try:
+                usage = psutil.disk_usage(partition.mountpoint)
+                disk_info[partition.mountpoint] = {
+                    'device': partition.device,
+                    'fstype': partition.fstype,
+                    'percent': usage.percent,
+                    'used_gb': usage.used / (1024**3),
+                    'total_gb': usage.total / (1024**3),
+                    'free_gb': usage.free / (1024**3)
+                }
+            except PermissionError:
+                # This can happen on some mount points
+                continue
+        
+        return disk_info
     
     def get_runtime_info(self):
         """Get system runtime and process information"""
@@ -111,27 +132,50 @@ class SystemMonitor:
             'boot_time': datetime.fromtimestamp(psutil.boot_time()).strftime('%Y-%m-%d %H:%M:%S'),
             'current_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'process_count': len(psutil.pids()),
-            'network_connections': len(psutil.net_connections())
+            'thread_count': sum([p.num_threads() for p in psutil.process_iter(['num_threads'])]),
+            'network_connections': len(psutil.net_connections()),
+            'users': [user._asdict() for user in psutil.users()]
         }
     
     def get_network_stats(self):
         """Get network statistics"""
         net_io = psutil.net_io_counters()
+        net_if_addrs = psutil.net_if_addrs()
+        net_if_stats = psutil.net_if_stats()
+        
+        interfaces = {}
+        for interface, addrs in net_if_addrs.items():
+            if interface in net_if_stats:
+                stats = net_if_stats[interface]
+                interfaces[interface] = {
+                    'is_up': stats.isup,
+                    'speed': stats.speed,
+                    'mtu': stats.mtu,
+                    'addresses': [{'family': addr.family.name, 'address': addr.address} for addr in addrs]
+                }
+        
         return {
-            'bytes_sent_mb': net_io.bytes_sent / (1024**2),
-            'bytes_recv_mb': net_io.bytes_recv / (1024**2),
-            'packets_sent': net_io.packets_sent,
-            'packets_recv': net_io.packets_recv,
-            'errors_in': net_io.errin,
-            'errors_out': net_io.errout
+            'total': {
+                'bytes_sent_mb': net_io.bytes_sent / (1024**2),
+                'bytes_recv_mb': net_io.bytes_recv / (1024**2),
+                'packets_sent': net_io.packets_sent,
+                'packets_recv': net_io.packets_recv,
+                'errors_in': net_io.errin,
+                'errors_out': net_io.errout,
+                'drop_in': net_io.dropin,
+                'drop_out': net_io.dropout
+            },
+            'interfaces': interfaces
         }
     
     def get_process_info(self, top_n=5):
         """Get top N processes by CPU and memory usage"""
         processes = []
-        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent', 'create_time']):
             try:
-                processes.append(proc.info)
+                proc_info = proc.info
+                proc_info['runtime'] = time.time() - proc_info['create_time']
+                processes.append(proc_info)
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
         
@@ -143,87 +187,72 @@ class SystemMonitor:
         
         return {
             'top_cpu_processes': top_cpu,
-            'top_memory_processes': top_memory
+            'top_memory_processes': top_memory,
+            'total_processes': len(processes)
         }
     
-    def get_ros_load(self):
-        """Get ROS-specific load information"""
-        if not ROS_AVAILABLE:
-            return {'error': 'ROS not available'}
+    def get_raspberry_pi_info(self):
+        """Get Raspberry Pi specific information"""
+        rpi_info = {}
         
-        ros_info = {
-            'ros_available': False,
-            'nodes': [],
-            'topics': [],
-            'services': [],
-            'topic_stats': {},
-            'node_stats': {}
-        }
-        
+        # Get Pi model
         try:
-            # Check if roscore is running
-            master = rospy.get_master()
-            master.getPid()
-            ros_info['ros_available'] = True
-            
-            # Get list of nodes
-            ros_info['nodes'] = rosnode.get_node_names()
-            
-            # Get list of topics with their types
-            topics_and_types = rospy.get_published_topics()
-            ros_info['topics'] = [{'name': t[0], 'type': t[1]} for t in topics_and_types]
-            
-            # Get services
-            ros_info['services'] = sorted(rospy.get_services())
-            
-            # Get topic statistics (bandwidth, frequency)
-            for topic, msg_type in topics_and_types[:10]:  # Limit to first 10 topics
-                try:
-                    # Get topic bandwidth
-                    topic_info = subprocess.check_output(
-                        ['rostopic', 'bw', topic], 
-                        timeout=2
-                    ).decode().strip()
-                    
-                    if 'average:' in topic_info:
-                        bandwidth = topic_info.split('average:')[1].strip()
-                        ros_info['topic_stats'][topic] = {'bandwidth': bandwidth}
-                except:
-                    pass
-            
-            # Get node CPU and memory usage
-            for node in ros_info['nodes'][:10]:  # Limit to first 10 nodes
-                try:
-                    # Find process ID for the node
-                    node_info = rosnode.get_node_info_description(node)
-                    
-                    # Try to find the process
-                    for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
-                        if node in proc.info['name'] or proc.info['name'] in node:
-                            ros_info['node_stats'][node] = {
-                                'pid': proc.info['pid'],
-                                'cpu_percent': proc.info['cpu_percent'],
-                                'memory_percent': proc.info['memory_percent']
-                            }
-                            break
-                except:
-                    pass
-            
-        except Exception as e:
-            ros_info['error'] = str(e)
+            with open('/proc/device-tree/model', 'r') as f:
+                rpi_info['model'] = f.read().strip('\x00')
+        except:
+            rpi_info['model'] = 'Unknown'
         
-        return ros_info
+        # Get throttling status
+        try:
+            result = subprocess.check_output(['vcgencmd', 'get_throttled']).decode()
+            throttled = int(result.split('=')[1].strip(), 16)
+            rpi_info['throttled'] = {
+                'under_voltage': bool(throttled & 0x1),
+                'frequency_capped': bool(throttled & 0x2),
+                'currently_throttled': bool(throttled & 0x4),
+                'soft_temp_limit': bool(throttled & 0x8),
+                'under_voltage_occurred': bool(throttled & 0x10000),
+                'frequency_cap_occurred': bool(throttled & 0x20000),
+                'throttling_occurred': bool(throttled & 0x40000),
+                'soft_temp_limit_occurred': bool(throttled & 0x80000)
+            }
+        except:
+            rpi_info['throttled'] = None
+        
+        # Get voltage
+        try:
+            result = subprocess.check_output(['vcgencmd', 'measure_volts']).decode()
+            rpi_info['core_voltage'] = float(result.split('=')[1].strip().replace('V', ''))
+        except:
+            rpi_info['core_voltage'] = None
+        
+        # Get clock speeds
+        clocks = ['arm', 'core', 'h264', 'isp', 'v3d', 'uart', 'pwm', 'emmc', 'pixel', 'vec', 'hdmi', 'dpi']
+        rpi_info['clocks'] = {}
+        for clock in clocks:
+            try:
+                result = subprocess.check_output(['vcgencmd', 'measure_clock', clock]).decode()
+                freq = int(result.split('=')[1].strip())
+                rpi_info['clocks'][clock] = freq / 1000000  # Convert to MHz
+            except:
+                pass
+        
+        return rpi_info
     
     def get_all_metrics(self):
-        """Get all system and ROS metrics"""
+        """Get all system metrics"""
         metrics = {
             'timestamp': datetime.now().isoformat(),
-            'temperature': self.get_cpu_temperature(),
+            'hostname': os.uname().nodename,
+            'temperature': {
+                'cpu': self.get_cpu_temperature(),
+                'gpu': self.get_gpu_temperature()
+            },
             'system_load': self.get_system_load(),
             'runtime': self.get_runtime_info(),
             'network': self.get_network_stats(),
             'processes': self.get_process_info(),
-            'ros_load': self.get_ros_load() if ROS_AVAILABLE else None
+            'raspberry_pi': self.get_raspberry_pi_info()
         }
         return metrics
     
@@ -231,119 +260,163 @@ class SystemMonitor:
         """Print a formatted summary of the metrics"""
         print("\n" + "="*60)
         print(f"System Monitor Report - {metrics['timestamp']}")
+        print(f"Hostname: {metrics['hostname']}")
         print("="*60)
         
         # Temperature
-        print(f"\n🌡️  CPU Temperature: {metrics['temperature']:.1f}°C")
+        temp = metrics['temperature']
+        print(f"\n🌡️  Temperature:")
+        print(f"   CPU: {temp['cpu']:.1f}°C")
+        if temp['gpu'] > 0:
+            print(f"   GPU: {temp['gpu']:.1f}°C")
         
         # System Load
         load = metrics['system_load']
         print(f"\n💻 System Load:")
-        print(f"   CPU Usage: {load['cpu_percent']:.1f}%")
+        print(f"   CPU Usage: {load['cpu_percent']:.1f}% (Cores: {load['cpu_count']})")
+        if load['cpu_percent_per_core']:
+            print(f"   Per Core: {[f'{x:.1f}%' for x in load['cpu_percent_per_core']]}")
         print(f"   Load Average: {load['load_average']['1min']:.2f} (1m), "
               f"{load['load_average']['5min']:.2f} (5m), "
               f"{load['load_average']['15min']:.2f} (15m)")
         print(f"   Memory: {load['memory']['percent']:.1f}% "
               f"({load['memory']['used_gb']:.1f}/{load['memory']['total_gb']:.1f} GB)")
-        print(f"   Disk: {load['disk']['percent']:.1f}% "
-              f"({load['disk']['used_gb']:.1f}/{load['disk']['total_gb']:.1f} GB)")
+        if load['swap']['total_gb'] > 0:
+            print(f"   Swap: {load['swap']['percent']:.1f}% "
+                  f"({load['swap']['used_gb']:.1f}/{load['swap']['total_gb']:.1f} GB)")
+        
+        # Disk Usage
+        print(f"\n💾 Disk Usage:")
+        for mount, disk in load['disk'].items():
+            if mount == '/':
+                print(f"   Root: {disk['percent']:.1f}% "
+                      f"({disk['used_gb']:.1f}/{disk['total_gb']:.1f} GB)")
+            elif disk['total_gb'] > 1:  # Only show significant partitions
+                print(f"   {mount}: {disk['percent']:.1f}% "
+                      f"({disk['used_gb']:.1f}/{disk['total_gb']:.1f} GB)")
         
         # Runtime
         runtime = metrics['runtime']
         print(f"\n⏱️  Runtime Info:")
         print(f"   System Uptime: {runtime['system_uptime']}")
         print(f"   Script Runtime: {runtime['script_runtime']}")
-        print(f"   Process Count: {runtime['process_count']}")
+        print(f"   Processes: {runtime['process_count']} | Threads: {runtime['thread_count']}")
+        print(f"   Network Connections: {runtime['network_connections']}")
+        
+        # Network
+        net = metrics['network']['total']
+        print(f"\n🌐 Network Stats:")
+        print(f"   Sent: {net['bytes_sent_mb']:.1f} MB | Received: {net['bytes_recv_mb']:.1f} MB")
+        print(f"   Packets: {net['packets_sent']:,} sent | {net['packets_recv']:,} received")
         
         # Top Processes
         processes = metrics['processes']
         print(f"\n📊 Top CPU Processes:")
         for proc in processes['top_cpu_processes'][:3]:
-            print(f"   {proc['name']}: {proc['cpu_percent']:.1f}%")
+            runtime_str = str(timedelta(seconds=int(proc['runtime'])))
+            print(f"   {proc['name'][:20]:20} PID:{proc['pid']:6} CPU:{proc['cpu_percent']:5.1f}% Runtime:{runtime_str}")
         
-        # ROS Info
-        if metrics['ros_load'] and metrics['ros_load'].get('ros_available'):
-            ros = metrics['ros_load']
-            print(f"\n🤖 ROS Status:")
-            print(f"   Active Nodes: {len(ros['nodes'])}")
-            print(f"   Active Topics: {len(ros['topics'])}")
-            print(f"   Services: {len(ros['services'])}")
-            
-            if ros['node_stats']:
-                print(f"\n   Node CPU Usage:")
-                for node, stats in list(ros['node_stats'].items())[:3]:
-                    print(f"     {node}: {stats['cpu_percent']:.1f}% CPU, "
-                          f"{stats['memory_percent']:.1f}% Memory")
+        print(f"\n📊 Top Memory Processes:")
+        for proc in processes['top_memory_processes'][:3]:
+            print(f"   {proc['name'][:20]:20} PID:{proc['pid']:6} MEM:{proc['memory_percent']:5.1f}%")
+        
+        # Raspberry Pi Info
+        rpi = metrics['raspberry_pi']
+        if rpi['model'] != 'Unknown':
+            print(f"\n🥧 Raspberry Pi Info:")
+            print(f"   Model: {rpi['model']}")
+            if rpi['core_voltage']:
+                print(f"   Core Voltage: {rpi['core_voltage']:.2f}V")
+            if rpi['throttled']:
+                throttle_status = []
+                if rpi['throttled']['currently_throttled']:
+                    throttle_status.append('THROTTLED')
+                if rpi['throttled']['under_voltage']:
+                    throttle_status.append('UNDER-VOLTAGE')
+                if rpi['throttled']['frequency_capped']:
+                    throttle_status.append('FREQ-CAPPED')
+                if throttle_status:
+                    print(f"   ⚠️  Status: {', '.join(throttle_status)}")
+                else:
+                    print(f"   ✅ Status: OK")
+            if rpi['clocks']:
+                print(f"   Clock Speeds: ARM={rpi['clocks'].get('arm', 0):.0f}MHz")
 
-
-class ROSSystemPublisher:
-    """Publish system metrics as ROS topics"""
+    def export_metrics(self, metrics, format='json', filename=None):
+        """Export metrics to file in various formats"""
+        if filename is None:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"system_metrics_{timestamp}.{format}"
+        
+        if format == 'json':
+            with open(filename, 'w') as f:
+                json.dump(metrics, f, indent=2)
+        elif format == 'csv':
+            # Flatten the metrics for CSV export
+            import csv
+            flat_metrics = self._flatten_dict(metrics)
+            with open(filename, 'w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=flat_metrics.keys())
+                writer.writeheader()
+                writer.writerow(flat_metrics)
+        
+        return filename
     
-    def __init__(self, monitor):
-        self.monitor = monitor
-        
-        # Initialize ROS node
-        rospy.init_node('system_monitor', anonymous=True)
-        
-        # Publishers
-        self.temp_pub = rospy.Publisher('/system/temperature', Float32, queue_size=1)
-        self.cpu_pub = rospy.Publisher('/system/cpu_usage', Float32, queue_size=1)
-        self.memory_pub = rospy.Publisher('/system/memory_usage', Float32, queue_size=1)
-        self.full_status_pub = rospy.Publisher('/system/full_status', String, queue_size=1)
-        
-        # Timer for periodic publishing
-        self.timer = rospy.Timer(rospy.Duration(2.0), self.publish_metrics)
-        
-    def publish_metrics(self, event):
-        """Publish metrics to ROS topics"""
-        metrics = self.monitor.get_all_metrics()
-        
-        # Publish individual metrics
-        self.temp_pub.publish(Float32(metrics['temperature']))
-        self.cpu_pub.publish(Float32(metrics['system_load']['cpu_percent']))
-        self.memory_pub.publish(Float32(metrics['system_load']['memory']['percent']))
-        
-        # Publish full status as JSON
-        self.full_status_pub.publish(String(json.dumps(metrics, indent=2)))
+    def _flatten_dict(self, d, parent_key='', sep='_'):
+        """Flatten nested dictionary for CSV export"""
+        items = []
+        for k, v in d.items():
+            new_key = f"{parent_key}{sep}{k}" if parent_key else k
+            if isinstance(v, dict):
+                items.extend(self._flatten_dict(v, new_key, sep=sep).items())
+            elif isinstance(v, list):
+                items.append((new_key, str(v)))
+            else:
+                items.append((new_key, v))
+        return dict(items)
 
 
 def main():
     """Main function to run the monitor"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Raspberry Pi System Monitor')
+    parser.add_argument('--interval', type=int, default=5, help='Update interval in seconds')
+    parser.add_argument('--save', action='store_true', help='Save metrics to file')
+    parser.add_argument('--format', choices=['json', 'csv'], default='json', help='Export format')
+    parser.add_argument('--once', action='store_true', help='Run once and exit')
+    
+    args = parser.parse_args()
+    
     monitor = SystemMonitor()
     
-    # Check if we should run as ROS node
-    use_ros = '--ros' in os.sys.argv and ROS_AVAILABLE
+    print("Starting System Monitor...")
+    print(f"Update interval: {args.interval} seconds")
+    if args.save:
+        print(f"Saving metrics in {args.format} format")
     
-    if use_ros:
-        print("Starting ROS System Monitor Node...")
-        publisher = ROSSystemPublisher(monitor)
-        
-        # Keep publishing until shutdown
-        rospy.spin()
-    else:
-        print("Starting System Monitor (Standalone Mode)...")
-        print("Add --ros flag to publish metrics to ROS topics")
-        
-        try:
-            while True:
-                # Get all metrics
-                metrics = monitor.get_all_metrics()
-                
-                # Print summary
-                monitor.print_summary(metrics)
-                
-                # Optional: Save to file
-                if '--save' in os.sys.argv:
-                    filename = f"system_metrics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-                    with open(filename, 'w') as f:
-                        json.dump(metrics, f, indent=2)
-                    print(f"\nMetrics saved to {filename}")
-                
-                # Wait before next update
-                time.sleep(5)
-                
-        except KeyboardInterrupt:
-            print("\nMonitoring stopped.")
+    try:
+        while True:
+            # Get all metrics
+            metrics = monitor.get_all_metrics()
+            
+            # Print summary
+            monitor.print_summary(metrics)
+            
+            # Save to file if requested
+            if args.save:
+                filename = monitor.export_metrics(metrics, format=args.format)
+                print(f"\n💾 Metrics saved to {filename}")
+            
+            # Exit if running once
+            if args.once:
+                break
+            
+            # Wait before next update
+            time.sleep(args.interval)
+            
+    except KeyboardInterrupt:
+        print("\n\nMonitoring stopped.")
 
 
 if __name__ == '__main__':
