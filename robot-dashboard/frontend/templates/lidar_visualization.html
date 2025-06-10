@@ -291,6 +291,171 @@
             font-weight: 600;
         }
 
+        .clearance-panel {
+            background: #1a1a1a;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #333;
+        }
+
+        .clearance-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .clearance-item {
+            background: #252525;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #444;
+        }
+
+        .clearance-label {
+            color: #aaa;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .clearance-input {
+            width: 100%;
+            padding: 8px;
+            background: #1a1a1a;
+            border: 1px solid #666;
+            border-radius: 5px;
+            color: #fff;
+            font-size: 1.1em;
+            text-align: center;
+        }
+
+        .clearance-input:focus {
+            outline: none;
+            border-color: #ff00ff;
+            box-shadow: 0 0 5px rgba(255, 0, 255, 0.3);
+        }
+
+        .clearance-unit {
+            color: #888;
+            font-size: 0.8em;
+            margin-top: 5px;
+            text-align: center;
+        }
+
+        .clearance-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .clearance-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #2a2a2a;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .clearance-btn:hover {
+            background: #3a3a3a;
+        }
+
+        .clearance-btn.apply {
+            background: linear-gradient(135deg, #ff00ff, #aa00ff);
+        }
+
+        .clearance-btn.apply:hover {
+            box-shadow: 0 5px 20px rgba(255, 0, 255, 0.4);
+        }
+
+        .background-panel {
+            background: #1a1a1a;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #333;
+        }
+
+        .background-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .calibrate-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #ffaa00, #ff8800);
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .calibrate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 170, 0, 0.4);
+        }
+
+        .calibrate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #444;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #ff00ff;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
         @media (max-width: 1200px) {
             .main-container {
                 grid-template-columns: 1fr;
@@ -380,6 +545,56 @@
                 <div class="info-value" id="safeDirections" style="font-size: 1em;">-</div>
             </div>
         </div>
+    </div>
+
+    <div class="background-panel">
+        <h3 style="color: #ffaa00; margin-bottom: 15px;">Lidar Background Removal</h3>
+        <div class="background-controls">
+            <button class="calibrate-btn" id="calibrateBtn" onclick="calibrateBackground()">
+                Calibrate Background
+            </button>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="bgRemovalToggle" style="color: #aaa;">Background Removal:</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="bgRemovalToggle" checked onchange="toggleBackgroundRemoval()">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div id="calibrationStatus" style="color: #888;">
+                Status: Not calibrated
+            </div>
+        </div>
+        <p style="color: #666; font-size: 0.8em; margin-top: 10px;">
+            Calibrate while stationary to remove robot components from lidar scans.
+        </p>
+    </div>
+
+    <div class="clearance-panel">
+        <h3 style="color: #ff00ff; margin-bottom: 15px;">Safety Clearance Settings (from robot body)</h3>
+        <div class="clearance-controls">
+            <div class="clearance-item">
+                <label class="clearance-label">Critical Distance</label>
+                <input type="number" class="clearance-input" id="criticalDistance" value="200" min="100" max="500" step="10">
+                <div class="clearance-unit">mm (emergency stop)</div>
+            </div>
+            <div class="clearance-item">
+                <label class="clearance-label">Safety Distance</label>
+                <input type="number" class="clearance-input" id="safetyDistance" value="300" min="200" max="800" step="10">
+                <div class="clearance-unit">mm (obstacle avoidance)</div>
+            </div>
+            <div class="clearance-item">
+                <label class="clearance-label">Wall Follow Distance</label>
+                <input type="number" class="clearance-input" id="wallFollowDistance" value="500" min="300" max="1000" step="50">
+                <div class="clearance-unit">mm (ideal wall distance)</div>
+            </div>
+        </div>
+        <div class="clearance-buttons">
+            <button class="clearance-btn" onclick="resetClearanceDefaults()">Reset Defaults</button>
+            <button class="clearance-btn apply" onclick="applyClearanceSettings()">Apply Settings</button>
+        </div>
+        <p style="color: #888; font-size: 0.8em; margin-top: 10px; text-align: center;">
+            Note: Lidar sensor is at front center. All distances are measured from robot body edges.
+        </p>
     </div>
 
     <div class="mapping-panel" id="mappingPanel">
@@ -993,7 +1208,128 @@
             }
         }, 1000);
         
+        // Load safety parameters on startup
+        async function loadSafetyParameters() {
+            try {
+                const response = await fetch('/api/automation/safety');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('criticalDistance').value = data.parameters.critical_distance;
+                    document.getElementById('safetyDistance').value = data.parameters.safety_distance;
+                    document.getElementById('wallFollowDistance').value = data.parameters.wall_follow_distance;
+                }
+            } catch (error) {
+                console.error('Failed to load safety parameters:', error);
+            }
+        }
+        
+        // Apply clearance settings
+        async function applyClearanceSettings() {
+            const critical = parseInt(document.getElementById('criticalDistance').value);
+            const safety = parseInt(document.getElementById('safetyDistance').value);
+            const wallFollow = parseInt(document.getElementById('wallFollowDistance').value);
+            
+            try {
+                const response = await fetch('/api/automation/safety', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        critical_distance: critical,
+                        safety_distance: safety,
+                        wall_follow_distance: wallFollow
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Safety parameters updated successfully!');
+                } else {
+                    alert('Failed to update parameters: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Failed to update safety parameters:', error);
+                alert('Failed to update safety parameters');
+            }
+        }
+        
+        // Reset to default values
+        function resetClearanceDefaults() {
+            document.getElementById('criticalDistance').value = 200;
+            document.getElementById('safetyDistance').value = 300;
+            document.getElementById('wallFollowDistance').value = 500;
+        }
+        
+        // Background calibration functions
+        async function calibrateBackground() {
+            const calibrateBtn = document.getElementById('calibrateBtn');
+            const statusDiv = document.getElementById('calibrationStatus');
+            
+            calibrateBtn.disabled = true;
+            calibrateBtn.textContent = 'Calibrating...';
+            statusDiv.textContent = 'Status: Calibrating...';
+            
+            try {
+                const response = await fetch('/api/automation/calibrate', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusDiv.textContent = `Status: Calibrated (${data.static_points} static points)`;
+                    statusDiv.style.color = '#00ff88';
+                } else {
+                    statusDiv.textContent = 'Status: Calibration failed';
+                    statusDiv.style.color = '#ff4444';
+                }
+            } catch (error) {
+                console.error('Failed to calibrate background:', error);
+                statusDiv.textContent = 'Status: Calibration error';
+                statusDiv.style.color = '#ff4444';
+            } finally {
+                calibrateBtn.disabled = false;
+                calibrateBtn.textContent = 'Calibrate Background';
+            }
+        }
+        
+        async function toggleBackgroundRemoval() {
+            const toggle = document.getElementById('bgRemovalToggle');
+            
+            try {
+                const response = await fetch('/api/automation/background/toggle', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    toggle.checked = data.enabled;
+                }
+            } catch (error) {
+                console.error('Failed to toggle background removal:', error);
+            }
+        }
+        
+        async function loadBackgroundStatus() {
+            try {
+                const response = await fetch('/api/automation/background');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('bgRemovalToggle').checked = data.enabled;
+                    const statusDiv = document.getElementById('calibrationStatus');
+                    if (data.calibrated) {
+                        statusDiv.textContent = `Status: Calibrated (${data.static_points} static points)`;
+                        statusDiv.style.color = '#00ff88';
+                    } else {
+                        statusDiv.textContent = 'Status: Not calibrated';
+                        statusDiv.style.color = '#888';
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load background status:', error);
+            }
+        }
+        
         // Initialize
+        loadSafetyParameters();
+        loadBackgroundStatus();
         toggleFollowRobot();  // Start with follow robot enabled
     </script>
 </body>

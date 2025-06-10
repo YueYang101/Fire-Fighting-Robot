@@ -226,6 +226,115 @@ def get_automation_status():
             "error": str(e)
         }), 500
 
+@app.route('/api/automation/safety', methods=['POST'])
+def update_safety_parameters():
+    """Update automation safety parameters"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        critical = data.get('critical_distance', 200)
+        safety = data.get('safety_distance', 300)
+        wall_follow = data.get('wall_follow_distance', 500)
+        
+        if auto_mapper.update_safety_parameters(critical, safety, wall_follow):
+            return jsonify({
+                "success": True,
+                "message": "Safety parameters updated",
+                "parameters": {
+                    "critical_distance": critical,
+                    "safety_distance": safety,
+                    "wall_follow_distance": wall_follow
+                }
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Failed to update parameters"
+            }), 400
+    except Exception as e:
+        logger.error(f"Error updating safety parameters: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/automation/safety', methods=['GET'])
+def get_safety_parameters():
+    """Get current automation safety parameters"""
+    try:
+        return jsonify({
+            "success": True,
+            "parameters": {
+                "critical_distance": auto_mapper.critical_distance,
+                "safety_distance": auto_mapper.safety_distance,
+                "wall_follow_distance": auto_mapper.wall_follow_distance
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting safety parameters: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/automation/calibrate', methods=['POST'])
+def calibrate_background():
+    """Calibrate lidar background to remove static obstacles"""
+    try:
+        if auto_mapper.calibrate_background():
+            return jsonify({
+                "success": True,
+                "message": "Background calibration successful",
+                "static_points": len(auto_mapper.static_obstacles)
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Background calibration failed"
+            }), 400
+    except Exception as e:
+        logger.error(f"Error calibrating background: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/automation/background', methods=['GET'])
+def get_background_status():
+    """Get background removal status"""
+    try:
+        return jsonify({
+            "success": True,
+            "enabled": auto_mapper.background_removal_enabled,
+            "static_points": len(auto_mapper.static_obstacles),
+            "calibrated": len(auto_mapper.static_obstacles) > 0
+        })
+    except Exception as e:
+        logger.error(f"Error getting background status: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/automation/background/toggle', methods=['POST'])
+def toggle_background_removal():
+    """Toggle background removal on/off"""
+    try:
+        auto_mapper.background_removal_enabled = not auto_mapper.background_removal_enabled
+        return jsonify({
+            "success": True,
+            "enabled": auto_mapper.background_removal_enabled
+        })
+    except Exception as e:
+        logger.error(f"Error toggling background removal: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 # =============================================================================
 # SERVO/AIMING SYSTEM API ROUTES
 # =============================================================================
