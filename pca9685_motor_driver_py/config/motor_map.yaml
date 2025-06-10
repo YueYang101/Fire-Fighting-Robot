@@ -1,5 +1,16 @@
 motor_driver:
   ros__parameters:
-    #       RR        RF        LF        LR
-    motor_map: [0,1,   2,3,     4,7,     5,6]
+    # Simplified 2-motor configuration
+    # Motor 0: Right side (uses PCA channels 0,1)
+    # Motor 1: Left side (uses PCA channels 2,3)
+    motor_map: [0,1,  2,3]
+    
+    # PWM frequency for motor control
     pwm_frequency: 100
+    
+    # Optional: Add these parameters for better control
+    # Dead time in milliseconds (only applied on direction change)
+    dead_time_ms: 50
+    
+    # Minimum speed change to trigger update (helps with noise)
+    min_speed_change: 5

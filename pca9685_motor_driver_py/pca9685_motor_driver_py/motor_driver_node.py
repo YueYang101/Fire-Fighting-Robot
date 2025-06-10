@@ -9,18 +9,16 @@ Each motor uses two PCA channels:
     • forward_ch – PWM for forward motion (0 when backward)
     • backward_ch – PWM for backward motion (0 when forward)
 
-The mapping is supplied at run-time via the parameter *motor_map*
-(encoded as an INTEGER_ARRAY):
-
-    motor_map: [forward0, backward0,  forward1, backward1,  …]
-
-Example for two motors:
-    motor_map: [0, 1, 2, 3]   # motor 0 → CH0/1, motor 1 → CH2/3
+IMPROVEMENTS:
+- Dead time only applied on direction changes
+- Smooth speed transitions without stopping
+- Configurable dead time parameter
+- Better logging for debugging
 """
 
 from __future__ import annotations
-from typing import Dict, Tuple
-import time  # Added for dead time control
+from typing import Dict, Tuple, Optional
+import time
 
 import rclpy
 from rclpy.node import Node
@@ -62,13 +60,15 @@ class MotorDriver(Node):
     def __init__(self):
         super().__init__("motor_driver")
 
-        # 1. Declare parameters (force motor_map to be INTEGER_ARRAY)
+        # 1. Declare parameters
         self.declare_parameter(
             "motor_map",
-            [0, 1, 2, 3],                                            # <- default: 2 motors
+            [0, 1, 2, 3],  # default: 2 motors
             ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER_ARRAY)
         )
         self.declare_parameter("pwm_frequency", 100)
+        self.declare_parameter("dead_time_ms", 50)  # Dead time in milliseconds
+        self.declare_parameter("min_speed_change", 5)  # Minimum PWM change to apply
 
         # 2. Read parameters
         flat_map = self.get_parameter("motor_map") \
@@ -86,21 +86,34 @@ class MotorDriver(Node):
             i: (flat_map[2 * i], flat_map[2 * i + 1])
             for i in range(len(flat_map) // 2)
         }
+        
         pwm_freq = int(self.get_parameter("pwm_frequency").value)
+        self.dead_time = self.get_parameter("dead_time_ms").value / 1000.0  # Convert to seconds
+        self.min_speed_change = self.get_parameter("min_speed_change").value
 
         # 3. Init hardware (real or stub)
         i2c = busio.I2C(board.SCL, board.SDA)          # type: ignore
         self.pca = adafruit_pca9685.PCA9685(i2c)       # type: ignore
         self.pca.frequency = pwm_freq
 
+        # 4. Track motor states to optimize transitions
+        self.motor_states: Dict[int, Dict[str, any]] = {
+            motor_id: {
+                "direction": "brake",
+                "speed": 0,
+                "last_update": time.time()
+            }
+            for motor_id in self.motor_map.keys()
+        }
+
         self.get_logger().info(
             f"🟢 Motor-driver ready — {len(self.motor_map)} motors, "
-            f"PCA9685 freq {pwm_freq} Hz "
+            f"PCA9685 freq {pwm_freq} Hz, dead_time {self.dead_time*1000}ms "
             f"({'real' if HARDWARE else 'dummy'} hardware)"
         )
         self.get_logger().info(f"Motor mapping: {self.motor_map}")
 
-        # 4. ROS service
+        # 5. ROS service
         self.create_service(SetMotor, "set_motor", self.handle_set_motor)
 
     # -------------------------- service callback -------------------------
@@ -118,43 +131,73 @@ class MotorDriver(Node):
             return res
 
         forward_ch, backward_ch = self.motor_map[mid]
-
-        # IMPORTANT: Always ensure both channels are 0 before any change
-        # This prevents the motor driver protection from triggering
-        self.pca.channels[forward_ch].duty_cycle = 0
-        self.pca.channels[backward_ch].duty_cycle = 0
         
-        # Critical: Give motor driver time to register the stop state
-        time.sleep(0.05)  # 50ms dead time
+        # Get current state
+        current_state = self.motor_states[mid]
+        current_direction = current_state["direction"]
+        current_speed = current_state["speed"]
+        
+        # Check if this is a significant change
+        speed_change = abs(speed - current_speed)
+        direction_changed = (dirn != current_direction)
+        
+        # Skip if change is too small (unless stopping or changing direction)
+        if not direction_changed and speed_change < self.min_speed_change and dirn != "brake":
+            res.success = True
+            res.message = f"Skipped minor speed change ({speed_change} < {self.min_speed_change})"
+            return res
 
-        # Dual-PWM control logic
-        if dirn == "forward":
-            # Set backward to 0 first (redundant but safe)
+        # Apply dead time ONLY on direction changes (not speed changes)
+        if direction_changed and current_direction != "brake" and dirn != "brake":
+            # Direction change requires stopping first
+            self.get_logger().info(
+                f"Motor {mid} direction change: {current_direction} → {dirn}, applying dead time"
+            )
+            
+            # Stop both channels
+            self.pca.channels[forward_ch].duty_cycle = 0
             self.pca.channels[backward_ch].duty_cycle = 0
-            time.sleep(0.01)  # Small delay
-            # Then apply forward PWM
+            
+            # Apply dead time
+            time.sleep(self.dead_time)
+        
+        # Apply new motor command
+        if dirn == "forward":
+            # For forward: backward=0, forward=PWM
+            self.pca.channels[backward_ch].duty_cycle = 0
             self.pca.channels[forward_ch].duty_cycle = speed
             self.get_logger().info(
-                f"Motor {mid} forward: CH{forward_ch}={speed}, CH{backward_ch}=0"
+                f"Motor {mid} forward: speed {current_speed}→{speed} "
+                f"(CH{forward_ch}={speed}, CH{backward_ch}=0)"
             )
+            
         elif dirn == "backward":
-            # Set forward to 0 first (redundant but safe)
+            # For backward: forward=0, backward=PWM
             self.pca.channels[forward_ch].duty_cycle = 0
-            time.sleep(0.01)  # Small delay
-            # Then apply backward PWM
             self.pca.channels[backward_ch].duty_cycle = speed
             self.get_logger().info(
-                f"Motor {mid} backward: CH{forward_ch}=0, CH{backward_ch}={speed}"
+                f"Motor {mid} backward: speed {current_speed}→{speed} "
+                f"(CH{forward_ch}=0, CH{backward_ch}={speed})"
             )
+            
         elif dirn == "brake":
-            # Both already set to 0 above
+            # Brake: both channels to 0
+            self.pca.channels[forward_ch].duty_cycle = 0
+            self.pca.channels[backward_ch].duty_cycle = 0
             self.get_logger().info(
-                f"Motor {mid} brake: CH{forward_ch}=0, CH{backward_ch}=0"
+                f"Motor {mid} brake (CH{forward_ch}=0, CH{backward_ch}=0)"
             )
         else:
             res.success = False
             res.message = "direction must be forward/backward/brake"
             return res
+
+        # Update motor state
+        self.motor_states[mid] = {
+            "direction": dirn,
+            "speed": speed,
+            "last_update": time.time()
+        }
 
         res.success = True
         res.message = (
@@ -172,6 +215,12 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
+        # Stop all motors on shutdown
+        for motor_id in node.motor_map.keys():
+            forward_ch, backward_ch = node.motor_map[motor_id]
+            node.pca.channels[forward_ch].duty_cycle = 0
+            node.pca.channels[backward_ch].duty_cycle = 0
+        
         node.destroy_node()
         rclpy.shutdown()
 
