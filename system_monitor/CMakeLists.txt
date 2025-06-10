@@ -22,17 +22,17 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})
 
-# Install Python scripts
-install(PROGRAMS
-  ${PROJECT_NAME}/system_monitor_node.py
-  ${PROJECT_NAME}/system_info_publisher.py
-  DESTINATION lib/${PROJECT_NAME}
-)
-
 # Install launch files
 install(DIRECTORY
   launch
   DESTINATION share/${PROJECT_NAME}/
 )
+
+# This is important for the messages to be found by Python
+rosidl_generate_interfaces(${PROJECT_NAME}
+  ${msg_files}
+  DEPENDENCIES std_msgs sensor_msgs
+)
+ament_export_dependencies(rosidl_default_runtime)
 
 ament_package()
