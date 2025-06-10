@@ -1,0 +1,20 @@
+Code Scan Summary - 2025-06-10 20:38:35
+Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot/system_monitor
+Total files: 8
+Total size: 15.6 KB
+Total lines: 510
+
+Files by category:
+  Config: 1 files
+  Documentation: 2 files
+  Python: 5 files
+
+All code files:
+  package.xml (Config, 905.0 B)
+  CMakeLists.txt (Documentation, 433.0 B)
+  README.md (Documentation, 2.5 KB)
+  launch/system_monitor_launch.py (Python, 1.2 KB)
+  setup.py (Python, 862.0 B)
+  system_monitor/__init__.py (Python, 25.0 B)
+  system_monitor/system_info_publisher.py (Python, 1.6 KB)
+  system_monitor/system_monitor_node.py (Python, 8.2 KB)
