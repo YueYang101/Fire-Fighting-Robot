@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>fire_fighting_robot</name>
+  <name>fire_fighting_robot_bringup</name>  <!-- CHANGE THIS -->
   <version>0.0.1</version>
-  <description>Fire Fighting Robot Package</description>
+  <description>Fire Fighting Robot Bringup Package</description>  <!-- Optional: update description -->
   <maintainer email="your_email@example.com">Your Name</maintainer>
   <license>Apache-2.0</license>
 
