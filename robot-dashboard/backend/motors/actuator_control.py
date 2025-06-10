@@ -4,9 +4,11 @@ Actuator Control Module for Fire Extinguisher Trigger
 Handles linear actuator control through ROS2 service calls
 """
 
+import json
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
+from websocket import create_connection
 
 logger = logging.getLogger(__name__)
 
@@ -75,29 +77,82 @@ class ActuatorController:
                     "duration": duration
                 }
                 
-                success, response = self.ros_bridge.call_service(
-                    "/set_actuator",
-                    service_args,
-                    "set_actuator"
-                )
+                logger.info(f"Calling /set_actuator with args: {service_args}")
                 
-                if success:
-                    logger.info(f"Actuator command sent: {action} at {speed}% for {duration}s")
-                    return {
-                        "success": True,
-                        "action": action,
-                        "speed": speed,
-                        "duration": duration,
-                        "message": f"Actuator {action} at {speed}% speed" + (f" for {duration}s" if duration > 0 else " (continuous)"),
-                        "response": response
+                # Update ros_bridge.py call_service if needed to accept type parameter
+                # For now, let's try with the advertise_service approach
+                try:
+                    # First advertise the service (rosbridge might need this)
+                    ws = create_connection(self.ros_bridge.url, timeout=5)
+                    
+                    # Advertise service
+                    advertise_msg = {
+                        "op": "advertise_service",
+                        "service": "/set_actuator",
+                        "type": "actuator_interfaces/srv/SetActuator"
                     }
-                else:
-                    error_msg = response.get("error", "Unknown error")
-                    logger.error(f"Failed to send actuator command: {error_msg}")
-                    return {
-                        "success": False,
-                        "error": error_msg
+                    ws.send(json.dumps(advertise_msg))
+                    
+                    # Call service
+                    call_msg = {
+                        "op": "call_service",
+                        "service": "/set_actuator",
+                        "type": "actuator_interfaces/srv/SetActuator",
+                        "args": service_args
                     }
+                    ws.send(json.dumps(call_msg))
+                    
+                    # Get response
+                    response = ws.recv()
+                    response_data = json.loads(response)
+                    ws.close()
+                    
+                    logger.info(f"Direct service call response: {response_data}")
+                    
+                    if response_data.get("result", False):
+                        logger.info(f"Actuator command sent: {action} at {speed}% for {duration}s")
+                        return {
+                            "success": True,
+                            "action": action,
+                            "speed": speed,
+                            "duration": duration,
+                            "message": f"Actuator {action} at {speed}% speed" + (f" for {duration}s" if duration > 0 else " (continuous)"),
+                            "response": response_data
+                        }
+                    else:
+                        raise Exception(f"Service call failed: {response_data}")
+                        
+                except Exception as direct_error:
+                    logger.warning(f"Direct service call failed: {direct_error}, trying standard method")
+                    
+                    # Fallback to standard method
+                    success, response = self.ros_bridge.call_service(
+                        "/set_actuator",
+                        service_args,
+                        "set_actuator"
+                    )
+                    
+                    logger.info(f"Standard service call response: success={success}, response={response}")
+                    
+                    if success:
+                        logger.info(f"Actuator command sent: {action} at {speed}% for {duration}s")
+                        return {
+                            "success": True,
+                            "action": action,
+                            "speed": speed,
+                            "duration": duration,
+                            "message": f"Actuator {action} at {speed}% speed" + (f" for {duration}s" if duration > 0 else " (continuous)"),
+                            "response": response
+                        }
+                    else:
+                        error_msg = response.get("error", "Unknown error")
+                        logger.error(f"Failed to send actuator command: {error_msg}")
+                        logger.error(f"Full response: {response}")
+                        return {
+                            "success": False,
+                            "error": error_msg,
+                            "details": response
+                        }
                     
             except Exception as e:
                 logger.error(f"Failed to send actuator command: {e}")
