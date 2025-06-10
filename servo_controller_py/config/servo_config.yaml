@@ -10,6 +10,3 @@ servo_controller:
     # Angle limits
     min_angle: 0     # degrees
     max_angle: 270   # degrees
-    
-    # Movement speed
-    default_speed: 50  # degrees per second
