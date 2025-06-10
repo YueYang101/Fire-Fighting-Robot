@@ -1,24 +1,26 @@
-Code Scan Summary - 2025-06-10 21:24:29
+Code Scan Summary - 2025-06-10 22:20:30
 Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot/robot-dashboard
-Total files: 21
-Total size: 399.4 KB
-Total lines: 12,116
+Total files: 23
+Total size: 455.4 KB
+Total lines: 13,632
 
 Files by category:
   Documentation: 3 files
-  Python: 13 files
+  Python: 15 files
   Web: 5 files
 
 All code files:
-  code_full_content.txt (Documentation, 198.1 KB)
+  code_full_content.txt (Documentation, 210.1 KB)
   code_scan_summary.txt (Documentation, 1.3 KB)
   requirements.txt (Documentation, 130.0 B)
   backend/__init__.py (Python, 285.0 B)
+  backend/automation.py (Python, 16.8 KB)
   backend/config_manager.py (Python, 3.3 KB)
-  backend/host_backend.py (Python, 19.4 KB)
+  backend/host_backend.py (Python, 21.5 KB)
   backend/motors/__init__.py (Python, 0.0 B)
+  backend/motors/actuator_control.py (Python, 7.3 KB)
   backend/motors/motor_controller.py (Python, 6.3 KB)
-  backend/motors/motor_routes.py (Python, 3.7 KB)
+  backend/motors/motor_routes.py (Python, 4.1 KB)
   backend/motors/servo_control.py (Python, 6.7 KB)
   backend/ros_bridge.py (Python, 14.3 KB)
   backend/sensors/__init__.py (Python, 390.0 B)
@@ -26,7 +28,7 @@ All code files:
   backend/sensors/system_monitor.py (Python, 7.5 KB)
   backend/sensors/thermal_camera.py (Python, 7.7 KB)
   run.py (Python, 341.0 B)
-  frontend/templates/aiming_system.html (Web, 24.3 KB)
+  frontend/templates/aiming_system.html (Web, 41.6 KB)
   frontend/templates/dashboard_home.html (Web, 27.7 KB)
   frontend/templates/lidar_visualization.html (Web, 26.8 KB)
   frontend/templates/motor_control.html (Web, 23.3 KB)

@@ -27,6 +27,14 @@ class ROSBridgeConnection:
         self.port = port
         self.url = f"ws://{host}:{port}"
         self._connection = None
+        
+        # Known service types mapping
+        self.service_types = {
+            "/set_motor": "motor_interfaces/srv/SetMotor",
+            "/set_actuator": "actuator_interfaces/srv/SetActuator",
+            "/get_thermal_frame": "mlx90640_interfaces/srv/GetThermalFrame",
+            "/get_system_status": "system_interfaces/srv/GetSystemStatus"
+        }
     
     def connect(self) -> bool:
         """
@@ -55,7 +63,8 @@ class ROSBridgeConnection:
         return self._connection is not None
     
     def call_service(self, service_name: str, args: Dict[str, Any], 
-                    service_id: Optional[str] = None) -> Tuple[bool, Dict[str, Any]]:
+                    service_id: Optional[str] = None,
+                    service_type: Optional[str] = None) -> Tuple[bool, Dict[str, Any]]:
         """
         Call a ROS service through rosbridge
         
@@ -63,13 +72,18 @@ class ROSBridgeConnection:
             service_name: Name of the ROS service (e.g., "/set_motor")
             args: Service arguments as dictionary
             service_id: Optional ID for the service call
+            service_type: Optional service type (e.g., "actuator_interfaces/srv/SetActuator")
         
         Returns:
             Tuple[bool, Dict]: (success, response_data)
         """
         try:
             # Try to create a new connection for each call to avoid broken pipe
-            ws = create_connection(self.url, timeout=5)
+            ws = create_connection(self.url, timeout=10)  # Increased timeout
+            
+            # Determine service type if not provided
+            if not service_type and service_name in self.service_types:
+                service_type = self.service_types[service_name]
             
             # Prepare service call message
             request = {
@@ -78,13 +92,21 @@ class ROSBridgeConnection:
                 "args": args
             }
             
+            # Add service type if known
+            if service_type:
+                request["type"] = service_type
+                logger.debug(f"Using service type: {service_type}")
+            
             if service_id:
                 request["id"] = service_id
+            
+            logger.debug(f"Service call request: {request}")
             
             # Send request
             ws.send(json.dumps(request))
             
-            # Get response
+            # Get response with longer timeout
+            ws.settimeout(10)
             response = ws.recv()
             response_data = json.loads(response)
             
@@ -92,8 +114,23 @@ class ROSBridgeConnection:
             ws.close()
             
             logger.debug(f"Service call response: {response_data}")
-            return True, response_data
             
+            # Check if response indicates success
+            if "result" in response_data and response_data["result"] is True:
+                return True, response_data
+            elif "values" in response_data:
+                # Service call succeeded, return the values
+                return True, response_data
+            else:
+                # Check for error in response
+                error_msg = response_data.get("error", response_data.get("msg", "Unknown error"))
+                if error_msg:
+                    logger.error(f"Service call error: {error_msg}")
+                    return False, {"error": error_msg}
+                else:
+                    # No error but also no clear success indicator
+                    return True, response_data
+                    
         except Exception as e:
             logger.error(f"Service call failed: {e}")
             return False, {"error": str(e)}
@@ -182,6 +219,33 @@ class ROSBridgeConnection:
             return True
         except Exception:
             return False
+    
+    def send_motor_command(self, channel: str, direction: str, speed: int):
+        """
+        Send motor command via service call
+        
+        Args:
+            channel: Motor channel ('A' or 'B')
+            direction: Motor direction
+            speed: Motor speed (PWM value)
+        """
+        # Map channel to motor IDs
+        if channel == 'A':
+            motor_ids = [0, 1]  # Motors on channel A
+        else:
+            motor_ids = [2, 3]  # Motors on channel B
+        
+        # Send command to each motor on the channel
+        for motor_id in motor_ids:
+            self.call_service(
+                "/set_motor",
+                {
+                    "motor_id": motor_id,
+                    "direction": direction,
+                    "speed": speed
+                },
+                f"motor_cmd_{motor_id}"
+            )
 
 class MotorController:
     """High-level motor control interface using ROSBridge"""

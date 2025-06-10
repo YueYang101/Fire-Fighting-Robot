@@ -4,11 +4,9 @@ Actuator Control Module for Fire Extinguisher Trigger
 Handles linear actuator control through ROS2 service calls
 """
 
-import json
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
-from websocket import create_connection
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +68,7 @@ class ActuatorController:
         # Send command via ROS bridge if available
         if self.ros_bridge:
             try:
-                # Call the set_actuator service
+                # Call the set_actuator service with proper type
                 service_args = {
                     "action": action,
                     "speed": speed,
@@ -79,80 +77,51 @@ class ActuatorController:
                 
                 logger.info(f"Calling /set_actuator with args: {service_args}")
                 
-                # Update ros_bridge.py call_service if needed to accept type parameter
-                # For now, let's try with the advertise_service approach
-                try:
-                    # First advertise the service (rosbridge might need this)
-                    ws = create_connection(self.ros_bridge.url, timeout=5)
+                # Add service type for rosbridge
+                success, response = self.ros_bridge.call_service(
+                    "/set_actuator",
+                    service_args,
+                    "set_actuator",
+                    service_type="actuator_interfaces/srv/SetActuator"
+                )
+                
+                logger.info(f"Service call response: success={success}, response={response}")
+                
+                # Check different response formats
+                if success:
+                    # Extract the actual service response from rosbridge format
+                    service_response = response.get("values", {})
                     
-                    # Advertise service
-                    advertise_msg = {
-                        "op": "advertise_service",
-                        "service": "/set_actuator",
-                        "type": "actuator_interfaces/srv/SetActuator"
-                    }
-                    ws.send(json.dumps(advertise_msg))
+                    # Check if the service itself returned success
+                    service_success = service_response.get("success", True)
+                    service_message = service_response.get("message", "Command sent")
                     
-                    # Call service
-                    call_msg = {
-                        "op": "call_service",
-                        "service": "/set_actuator",
-                        "type": "actuator_interfaces/srv/SetActuator",
-                        "args": service_args
-                    }
-                    ws.send(json.dumps(call_msg))
-                    
-                    # Get response
-                    response = ws.recv()
-                    response_data = json.loads(response)
-                    ws.close()
-                    
-                    logger.info(f"Direct service call response: {response_data}")
-                    
-                    if response_data.get("result", False):
-                        logger.info(f"Actuator command sent: {action} at {speed}% for {duration}s")
+                    if service_success:
+                        logger.info(f"Actuator command successful: {service_message}")
                         return {
                             "success": True,
                             "action": action,
                             "speed": speed,
                             "duration": duration,
-                            "message": f"Actuator {action} at {speed}% speed" + (f" for {duration}s" if duration > 0 else " (continuous)"),
-                            "response": response_data
+                            "message": service_message or f"Actuator {action} at {speed}% speed" + (f" for {duration}s" if duration > 0 else " (continuous)"),
+                            "response": service_response
                         }
                     else:
-                        raise Exception(f"Service call failed: {response_data}")
-                        
-                except Exception as direct_error:
-                    logger.warning(f"Direct service call failed: {direct_error}, trying standard method")
-                    
-                    # Fallback to standard method
-                    success, response = self.ros_bridge.call_service(
-                        "/set_actuator",
-                        service_args,
-                        "set_actuator"
-                    )
-                    
-                    logger.info(f"Standard service call response: success={success}, response={response}")
-                    
-                    if success:
-                        logger.info(f"Actuator command sent: {action} at {speed}% for {duration}s")
-                        return {
-                            "success": True,
-                            "action": action,
-                            "speed": speed,
-                            "duration": duration,
-                            "message": f"Actuator {action} at {speed}% speed" + (f" for {duration}s" if duration > 0 else " (continuous)"),
-                            "response": response
-                        }
-                    else:
-                        error_msg = response.get("error", "Unknown error")
-                        logger.error(f"Failed to send actuator command: {error_msg}")
-                        logger.error(f"Full response: {response}")
+                        logger.error(f"Service returned failure: {service_message}")
                         return {
                             "success": False,
-                            "error": error_msg,
-                            "details": response
+                            "error": service_message or "Actuator command failed",
+                            "details": service_response
                         }
+                else:
+                    error_msg = response.get("error", response.get("msg", "Unknown error"))
+                    logger.error(f"Failed to call service: {error_msg}")
+                    logger.error(f"Full response: {response}")
+                    return {
+                        "success": False,
+                        "error": error_msg,
+                        "details": response
+                    }
                     
             except Exception as e:
                 logger.error(f"Failed to send actuator command: {e}")
@@ -203,7 +172,8 @@ class ActuatorController:
             success, response = self.ros_bridge.call_service(
                 "/set_actuator",
                 {"action": "stop", "speed": 0, "duration": 0.0},
-                "test_actuator_connection"
+                "test_actuator_connection",
+                service_type="actuator_interfaces/srv/SetActuator"
             )
             
             self.connected = success
@@ -218,6 +188,7 @@ class ActuatorController:
         """Emergency stop - immediately stop actuator"""
         logger.warning("Emergency stop activated for actuator")
         return self.stop()
+
 
 # Singleton instance
 _actuator_controller = None

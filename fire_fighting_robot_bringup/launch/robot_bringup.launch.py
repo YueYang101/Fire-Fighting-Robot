@@ -14,6 +14,8 @@ def generate_launch_description():
     subprocess.run(['pkill', '-9', '-f', 'ydlidar'], capture_output=True)
     subprocess.run(['pkill', '-9', '-f', 'thermal_camera_node'], capture_output=True)
     subprocess.run(['pkill', '-9', '-f', 'servo_controller_node'], capture_output=True)
+    subprocess.run(['pkill', '-9', '-f', 'actuator_node'], capture_output=True)  # Add this
+    subprocess.run(['pkill', '-9', '-f', 'system_monitor_node'], capture_output=True)  # Add this
     time.sleep(1)  # Give processes time to fully terminate
     print("Cleanup complete. Starting fresh...")
     
@@ -26,6 +28,27 @@ def generate_launch_description():
         output='screen',
         respawn=True,
         respawn_delay=2.0
+    )
+    
+    # Define the actuator controller node
+    actuator_controller = Node(
+        package='actuator_controller',
+        executable='actuator_node',
+        name='linear_actuator_controller',
+        output='screen',
+        parameters=[{
+            'in1_channel': 4,
+            'in2_channel': 5,
+            'max_extend_time': 8.0
+        }]
+    )
+    
+    # Define the system monitor node
+    system_monitor = Node(
+        package='system_monitor',
+        executable='system_monitor_node',
+        name='system_monitor',
+        output='screen'
     )
     
     return LaunchDescription([
@@ -70,6 +93,12 @@ def generate_launch_description():
             cmd=['/home/ubuntu-robot-pi4/ros2_ws/install/mlx90640_driver/bin/thermal_camera_node'],
             output='screen'
         ),
+        
+        # System Monitor Node
+        system_monitor,
+        
+        # Actuator Controller Node
+        actuator_controller,
         
         # Servo Controller Node - Start with 3 second delay to avoid conflicts
         TimerAction(
