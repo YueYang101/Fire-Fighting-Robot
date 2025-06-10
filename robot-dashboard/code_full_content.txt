@@ -1,7 +1,7 @@
 ================================================================================
 FULL CODE CONTENT DUMP
 Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot/robot-dashboard
-Time: 2025-06-10 19:11:42
+Time: 2025-06-10 19:20:32
 ================================================================================
 
 DIRECTORY STRUCTURE:
@@ -22,12 +22,13 @@ DIRECTORY STRUCTURE:
 │   └── ros_bridge.py (14.3 KB)
 ├── frontend/
 │   └── templates/
-│       ├── aiming_system.html (23.4 KB)
+│       ├── aiming_system.html (23.6 KB)
 │       ├── dashboard_home.html (25.4 KB)
 │       ├── lidar_visualization.html (26.8 KB)
 │       ├── motor_control.html (23.3 KB)
 │       └── thermal_camera.html (20.0 KB)
 ├── ui/
+├── code_full_content.txt (196.7 KB)
 ├── code_scan_summary.txt (1.2 KB)
 ├── code_scanner.py (12.9 KB)
 ├── requirements.txt (130.0 B)
@@ -36,36 +37,45 @@ DIRECTORY STRUCTURE:
 ================================================================================
 STATISTICS:
 ----------------------------------------
-Total code files: 19
-Total size: 188.8 KB
-Total lines: 5,780
+Total code files: 20
+Total size: 385.7 KB
+Total lines: 11,748
 
 FILES BY CATEGORY:
 ----------------------------------------
-Documentation: 2 files, 1.3 KB, 38 lines
+Documentation: 3 files, 198.1 KB, 6,004 lines
 Python: 12 files, 68.4 KB, 2,154 lines
-Web: 5 files, 119.0 KB, 3,588 lines
+Web: 5 files, 119.1 KB, 3,590 lines
 
 ================================================================================
 FILE CONTENTS:
 ================================================================================
 
 ================================================================================
+FILE: code_full_content.txt
+Category: Documentation | Size: 196.7 KB | Lines: 5966
+================================================================================
+
+================================================================================
+
+
+================================================================================
 FILE: code_scan_summary.txt
 Category: Documentation | Size: 1.2 KB | Lines: 31
 ================================================================================
-Code Scan Summary - 2025-06-10 19:11:42
+Code Scan Summary - 2025-06-10 19:20:32
 Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot/robot-dashboard
-Total files: 19
-Total size: 188.8 KB
-Total lines: 5,780
+Total files: 20
+Total size: 385.7 KB
+Total lines: 11,748
 
 Files by category:
-  Documentation: 2 files
+  Documentation: 3 files
   Python: 12 files
   Web: 5 files
 
 All code files:
+  code_full_content.txt (Documentation, 196.7 KB)
   code_scan_summary.txt (Documentation, 1.2 KB)
   requirements.txt (Documentation, 130.0 B)
   backend/__init__.py (Python, 285.0 B)
@@ -80,7 +90,7 @@ All code files:
   backend/sensors/lidar.py (Python, 8.0 KB)
   backend/sensors/thermal_camera.py (Python, 7.7 KB)
   run.py (Python, 341.0 B)
-  frontend/templates/aiming_system.html (Web, 23.4 KB)
+  frontend/templates/aiming_system.html (Web, 23.6 KB)
   frontend/templates/dashboard_home.html (Web, 25.4 KB)
   frontend/templates/lidar_visualization.html (Web, 26.8 KB)
   frontend/templates/motor_control.html (Web, 23.3 KB)
@@ -2344,7 +2354,7 @@ if __name__ == '__main__':
 
 ================================================================================
 FILE: frontend/templates/aiming_system.html
-Category: Web | Size: 23.4 KB | Lines: 723
+Category: Web | Size: 23.6 KB | Lines: 725
 ================================================================================
 <!DOCTYPE html>
 <html lang="en">
@@ -2764,6 +2774,7 @@ Category: Web | Size: 23.4 KB | Lines: 723
             }
         }
     </style>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
     <div class="header">
@@ -2861,7 +2872,7 @@ Category: Web | Size: 23.4 KB | Lines: 723
     </div>
 
     <script>
-        let ws = null;
+        let socket = null;
         let isConnected = false;
 
         // Add log entry
@@ -2879,46 +2890,47 @@ Category: Web | Size: 23.4 KB | Lines: 723
             }
         }
 
-        // Initialize WebSocket connection
+        // Initialize Socket.IO connection
         function connectWebSocket() {
-            const wsUrl = `ws://${window.location.hostname}:5001`;
-            ws = new WebSocket(wsUrl);
+            socket = io();
 
-            ws.onopen = function() {
-                console.log('WebSocket connected');
+            socket.on('connect', function() {
+                console.log('Socket.IO connected');
                 isConnected = true;
                 updateConnectionStatus(true);
                 addLog('Connected to servo controller', 'success');
                 
                 // Request initial servo state
-                ws.send(JSON.stringify({
-                    type: 'servo_command',
-                    action: 'get_state'
-                }));
-            };
+                socket.emit('request_servo_state');
+            });
 
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                
-                if (data.type === 'servo_state') {
-                    updateServoState(data);
+            socket.on('servo_state', function(data) {
+                updateServoState(data);
+            });
+
+            socket.on('servo_response', function(data) {
+                console.log('Servo response:', data);
+                if (data.result && !data.result.success) {
+                    addLog(`Error: ${data.result.error}`, 'error');
                 }
-            };
+            });
 
-            ws.onclose = function() {
-                console.log('WebSocket disconnected');
+            socket.on('servo_error', function(data) {
+                console.error('Servo error:', data);
+                addLog(`Error: ${data.error}`, 'error');
+            });
+
+            socket.on('disconnect', function() {
+                console.log('Socket.IO disconnected');
                 isConnected = false;
                 updateConnectionStatus(false);
                 addLog('Connection lost - Reconnecting...', 'error');
-                
-                // Attempt to reconnect after 3 seconds
-                setTimeout(connectWebSocket, 3000);
-            };
+            });
 
-            ws.onerror = function(error) {
-                console.error('WebSocket error:', error);
-                addLog('Connection error', 'error');
-            };
+            socket.on('connect_error', function(error) {
+                console.error('Socket.IO connection error:', error);
+                updateConnectionStatus(false);
+            });
         }
 
         // Update connection status display
@@ -3003,14 +3015,14 @@ Category: Web | Size: 23.4 KB | Lines: 723
 
         // Send servo command
         function sendServoCommand(pan, tilt) {
-            if (!isConnected || !ws) return;
+            if (!isConnected || !socket) return;
             
-            ws.send(JSON.stringify({
+            socket.emit('servo_command', {
                 type: 'servo_command',
                 action: 'move',
                 pan_angle: parseFloat(pan),
                 tilt_angle: parseFloat(tilt)
-            }));
+            });
             
             addLog(`Command sent: Pan ${pan}°, Tilt ${tilt}°`, 'success');
         }
@@ -3062,8 +3074,8 @@ Category: Web | Size: 23.4 KB | Lines: 723
 
         // Cleanup on page unload
         window.addEventListener('beforeunload', function() {
-            if (ws) {
-                ws.close();
+            if (socket) {
+                socket.disconnect();
             }
         });
     </script>

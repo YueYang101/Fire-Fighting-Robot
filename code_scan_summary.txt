@@ -1,14 +1,14 @@
-Code Scan Summary - 2025-06-10 13:10:02
+Code Scan Summary - 2025-06-10 19:30:23
 Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot
-Total files: 56
-Total size: 1009.2 KB
-Total lines: 30,536
+Total files: 71
+Total size: 579.3 KB
+Total lines: 17,359
 
 Files by category:
-  Config: 8 files
-  Documentation: 7 files
-  Python: 37 files
-  Web: 4 files
+  Config: 12 files
+  Documentation: 8 files
+  Python: 46 files
+  Web: 5 files
 
 All code files:
   fire_fighting_robot_bringup/package.xml (Config, 738.0 B)
@@ -16,16 +16,21 @@ All code files:
   mlx90640_driver/package.xml (Config, 736.0 B)
   mlx90640_interfaces/package.xml (Config, 823.0 B)
   pca9685_interfaces/package.xml (Config, 663.0 B)
-  pca9685_motor_driver_py/config/motor_map.yaml (Config, 146.0 B)
+  pca9685_motor_driver_py/config/motor_map.yaml (Config, 505.0 B)
   pca9685_motor_driver_py/package.xml (Config, 790.0 B)
   pca9685_motor_driver_py/setup.cfg (Config, 120.0 B)
-  README.md (Documentation, 1.5 KB)
+  servo_controller_py/config/servo_config.yaml (Config, 300.0 B)
+  servo_controller_py/package.xml (Config, 839.0 B)
+  servo_controller_py/setup.cfg (Config, 107.0 B)
+  servo_interfaces/package.xml (Config, 737.0 B)
+  README.md (Documentation, 4.0 KB)
   fire_fighting_robot_bringup/CMakeLists.txt (Documentation, 216.0 B)
   mlx90640_interfaces/CMakeLists.txt (Documentation, 630.0 B)
   pca9685_interfaces/CMakeLists.txt (Documentation, 482.0 B)
-  robot-dashboard/dashboard_scan.txt (Documentation, 145.9 KB)
+  robot-dashboard/code_full_content.txt (Documentation, 197.3 KB)
+  robot-dashboard/code_scan_summary.txt (Documentation, 1.3 KB)
   robot-dashboard/requirements.txt (Documentation, 130.0 B)
-  robot-dashboard/scan_output.txt (Documentation, 575.8 KB)
+  servo_interfaces/CMakeLists.txt (Documentation, 547.0 B)
   Flask_app.py (Python, 5.7 KB)
   Image Processing/depth_camera_main.py (Python, 2.2 KB)
   Pi_motor_control.py (Python, 4.5 KB)
@@ -41,29 +46,39 @@ All code files:
   Test_folder/Trigger_system/WS_control.py (Python, 10.4 KB)
   Test_folder/Trigger_system/demo.py (Python, 9.6 KB)
   Test_folder/lidar/YDLidar_G2_test.py (Python, 4.6 KB)
+  Test_folder/system_monitor.py (Python, 13.1 KB)
+  create_servo_package.py (Python, 16.5 KB)
   dump_local_repo.py (Python, 2.9 KB)
-  fire_fighting_robot_bringup/launch/robot_bringup.launch.py (Python, 2.2 KB)
+  fire_fighting_robot_bringup/launch/robot_bringup.launch.py (Python, 2.9 KB)
   mlx90640_driver/launch/thermal_camera_launch.py (Python, 1.2 KB)
   mlx90640_driver/mlx90640_driver/__init__.py (Python, 0.0 B)
   mlx90640_driver/mlx90640_driver/thermal_camera_node.py (Python, 6.3 KB)
   mlx90640_driver/setup.py (Python, 1.6 KB)
   pca9685_motor_driver_py/launch/motor_driver_launch.py (Python, 484.0 B)
   pca9685_motor_driver_py/pca9685_motor_driver_py/__init__.py (Python, 0.0 B)
-  pca9685_motor_driver_py/pca9685_motor_driver_py/motor_driver_node.py (Python, 6.3 KB)
+  pca9685_motor_driver_py/pca9685_motor_driver_py/motor_driver_node.py (Python, 8.2 KB)
   pca9685_motor_driver_py/setup.py (Python, 1.0 KB)
   pca9685_motor_driver_py/test/test_copyright.py (Python, 962.0 B)
   pca9685_motor_driver_py/test/test_flake8.py (Python, 884.0 B)
   pca9685_motor_driver_py/test/test_pep257.py (Python, 803.0 B)
   robot-dashboard/backend/__init__.py (Python, 285.0 B)
   robot-dashboard/backend/config_manager.py (Python, 3.3 KB)
-  robot-dashboard/backend/host_backend.py (Python, 13.0 KB)
-  robot-dashboard/backend/ros_bridge.py (Python, 10.0 KB)
+  robot-dashboard/backend/host_backend.py (Python, 17.6 KB)
+  robot-dashboard/backend/motors/__init__.py (Python, 0.0 B)
+  robot-dashboard/backend/motors/motor_controller.py (Python, 6.3 KB)
+  robot-dashboard/backend/motors/motor_routes.py (Python, 3.7 KB)
+  robot-dashboard/backend/motors/servo_control.py (Python, 6.7 KB)
+  robot-dashboard/backend/ros_bridge.py (Python, 14.3 KB)
   robot-dashboard/backend/sensors/__init__.py (Python, 280.0 B)
   robot-dashboard/backend/sensors/lidar.py (Python, 8.0 KB)
   robot-dashboard/backend/sensors/thermal_camera.py (Python, 7.7 KB)
-  robot-dashboard/dashboard_scanner.py (Python, 4.0 KB)
   robot-dashboard/run.py (Python, 341.0 B)
-  robot-dashboard/frontend/templates/dashboard_home.html (Web, 24.1 KB)
+  servo_controller_py/launch/servo_controller_launch.py (Python, 1.0 KB)
+  servo_controller_py/servo_controller_py/__init__.py (Python, 0.0 B)
+  servo_controller_py/servo_controller_py/servo_controller_node.py (Python, 6.7 KB)
+  servo_controller_py/setup.py (Python, 932.0 B)
+  robot-dashboard/frontend/templates/aiming_system.html (Web, 24.3 KB)
+  robot-dashboard/frontend/templates/dashboard_home.html (Web, 25.4 KB)
   robot-dashboard/frontend/templates/lidar_visualization.html (Web, 26.8 KB)
   robot-dashboard/frontend/templates/motor_control.html (Web, 23.3 KB)
   robot-dashboard/frontend/templates/thermal_camera.html (Web, 20.0 KB)

@@ -516,6 +516,9 @@
     <script>
         let socket = null;
         let isConnected = false;
+        let isUpdatingFromServer = false;
+        let currentPanValue = 135;
+        let currentTiltValue = 135;
 
         // Add log entry
         function addLog(message, type = 'info') {
@@ -591,9 +594,15 @@
 
         // Update servo state from WebSocket data
         function updateServoState(data) {
+            isUpdatingFromServer = true;
+            
+            // Store current values
+            currentPanValue = Math.round(data.pan_angle);
+            currentTiltValue = Math.round(data.tilt_angle);
+            
             // Update displays
-            document.getElementById('panValue').textContent = `${Math.round(data.pan_angle)}°`;
-            document.getElementById('tiltValue').textContent = `${Math.round(data.tilt_angle)}°`;
+            document.getElementById('panValue').textContent = `${currentPanValue}°`;
+            document.getElementById('tiltValue').textContent = `${currentTiltValue}°`;
             
             // Update status
             const panStatus = document.getElementById('panStatus');
@@ -615,23 +624,24 @@
                 tiltStatus.classList.remove('active');
             }
             
-            // Update sliders if not being dragged
-            if (!document.getElementById('panSlider').matches(':active')) {
-                // Snap to nearest discrete value
-                const panSnapped = Math.round(data.pan_angle / 30) * 30;
-                document.getElementById('panSlider').value = panSnapped;
-                updateSliderBackground('panSlider', panSnapped);
+            // Update sliders only if not being manipulated by user
+            const panSlider = document.getElementById('panSlider');
+            const tiltSlider = document.getElementById('tiltSlider');
+            
+            if (!panSlider.matches(':active') && !panSlider.matches(':focus')) {
+                panSlider.value = currentPanValue;
+                updateSliderBackground('panSlider', currentPanValue);
             }
             
-            if (!document.getElementById('tiltSlider').matches(':active')) {
-                // Snap to nearest discrete value
-                const tiltSnapped = Math.round(data.tilt_angle / 30) * 30;
-                document.getElementById('tiltSlider').value = tiltSnapped;
-                updateSliderBackground('tiltSlider', tiltSnapped);
+            if (!tiltSlider.matches(':active') && !tiltSlider.matches(':focus')) {
+                tiltSlider.value = currentTiltValue;
+                updateSliderBackground('tiltSlider', currentTiltValue);
             }
             
             // Update visualization
-            updateCrosshair(data.pan_angle, data.tilt_angle);
+            updateCrosshair(currentPanValue, currentTiltValue);
+            
+            isUpdatingFromServer = false;
         }
 
         // Update slider background
@@ -657,7 +667,7 @@
 
         // Send servo command
         function sendServoCommand(pan, tilt) {
-            if (!isConnected || !socket) return;
+            if (!isConnected || !socket || isUpdatingFromServer) return;
             
             socket.emit('servo_command', {
                 type: 'servo_command',
@@ -682,36 +692,48 @@
             moveToPreset(135, 135);
         }
 
-        // Slider event handlers - only send on change (discrete values)
+        // Slider event handlers - keep track of values independently
         document.getElementById('panSlider').addEventListener('input', function(e) {
+            if (isUpdatingFromServer) return;
             const value = parseInt(e.target.value);
             document.getElementById('panValue').textContent = `${value}°`;
             updateSliderBackground('panSlider', value);
         });
 
         document.getElementById('panSlider').addEventListener('change', function(e) {
-            const value = parseInt(e.target.value);
-            sendServoCommand(value, document.getElementById('tiltSlider').value);
+            if (isUpdatingFromServer) return;
+            const panValue = parseInt(e.target.value);
+            // Use the current tilt value from state, not from the slider
+            sendServoCommand(panValue, currentTiltValue);
         });
 
         document.getElementById('tiltSlider').addEventListener('input', function(e) {
+            if (isUpdatingFromServer) return;
             const value = parseInt(e.target.value);
             document.getElementById('tiltValue').textContent = `${value}°`;
             updateSliderBackground('tiltSlider', value);
         });
 
         document.getElementById('tiltSlider').addEventListener('change', function(e) {
-            const value = parseInt(e.target.value);
-            sendServoCommand(document.getElementById('panSlider').value, value);
+            if (isUpdatingFromServer) return;
+            const tiltValue = parseInt(e.target.value);
+            // Use the current pan value from state, not from the slider
+            sendServoCommand(currentPanValue, tiltValue);
         });
 
         // Initialize on page load
         window.addEventListener('load', function() {
             connectWebSocket();
-            moveToCenter(); // Start at center position
             updateSliderBackground('panSlider', 135);
             updateSliderBackground('tiltSlider', 135);
             addLog('Aiming system initialized', 'success');
+            
+            // Request initial state after a short delay
+            setTimeout(() => {
+                if (socket && isConnected) {
+                    socket.emit('request_servo_state');
+                }
+            }, 500);
         });
 
         // Cleanup on page unload

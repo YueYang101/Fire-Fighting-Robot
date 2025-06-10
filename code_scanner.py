@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Code File Scanner - Scans and displays all code files in the current directory
-Place this script in any folder and run it to see all code files
+Enhanced Code File Scanner - Can save full content to file
+python code_scanner.py --save-full
 """
 
 import os
@@ -166,7 +166,7 @@ def get_directory_tree(directory=".", prefix="", max_depth=5, current_depth=0, s
     
     return output
 
-def scan_code_files(base_path=".", show_content=True, max_files=None):
+def scan_code_files(base_path=".", show_content=True, max_files=None, save_full_content=False):
     """Scan for all code files in directory"""
     
     print("=" * 80)
@@ -282,6 +282,55 @@ def scan_code_files(base_path=".", show_content=True, max_files=None):
             f.write(f"  {file_info['path']} ({file_info['category']}, {format_size(file_info['size'])})\n")
     
     print(f"\nSummary saved to: {summary_file}")
+    
+    # Save full content if requested
+    if save_full_content:
+        full_content_file = "code_full_content.txt"
+        with open(full_content_file, 'w', encoding='utf-8') as f:
+            f.write("=" * 80 + "\n")
+            f.write("FULL CODE CONTENT DUMP\n")
+            f.write(f"Directory: {os.path.abspath(base_path)}\n")
+            f.write(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write("=" * 80 + "\n\n")
+            
+            # Write directory structure
+            f.write("DIRECTORY STRUCTURE:\n")
+            f.write("-" * 40 + "\n")
+            for line in tree:
+                f.write(line + "\n")
+            f.write("\n")
+            
+            # Write statistics
+            f.write("=" * 80 + "\n")
+            f.write("STATISTICS:\n")
+            f.write("-" * 40 + "\n")
+            f.write(f"Total code files: {len(code_files)}\n")
+            f.write(f"Total size: {format_size(total_size)}\n")
+            f.write(f"Total lines: {total_lines:,}\n\n")
+            
+            f.write("FILES BY CATEGORY:\n")
+            f.write("-" * 40 + "\n")
+            for category in sorted(category_stats.keys()):
+                stats = category_stats[category]
+                f.write(f"{category}: {stats['count']} files, {format_size(stats['size'])}, {stats['lines']:,} lines\n")
+            f.write("\n")
+            
+            # Write all file contents
+            f.write("=" * 80 + "\n")
+            f.write("FILE CONTENTS:\n")
+            f.write("=" * 80 + "\n")
+            
+            for file_info in code_files:
+                f.write(f"\n{'=' * 80}\n")
+                f.write(f"FILE: {file_info['path']}\n")
+                f.write(f"Category: {file_info['category']} | Size: {format_size(file_info['size'])} | Lines: {file_info['lines']}\n")
+                f.write(f"{'=' * 80}\n")
+                
+                content = read_file_safely(file_info['full_path'])
+                f.write(content)
+                f.write(f"\n{'=' * 80}\n\n")
+        
+        print(f"Full content saved to: {full_content_file}")
 
 def main():
     """Main function"""
@@ -291,6 +340,7 @@ def main():
     parser.add_argument('path', nargs='?', default='.', help='Directory to scan (default: current directory)')
     parser.add_argument('--no-content', action='store_true', help='Skip displaying file contents')
     parser.add_argument('--max-files', type=int, help='Maximum number of files to display content for')
+    parser.add_argument('--save-full', action='store_true', help='Save full file contents to code_full_content.txt')
     
     args = parser.parse_args()
     
@@ -301,7 +351,8 @@ def main():
     scan_code_files(
         base_path=args.path,
         show_content=not args.no_content,
-        max_files=args.max_files
+        max_files=args.max_files,
+        save_full_content=args.save_full
     )
 
 if __name__ == "__main__":
