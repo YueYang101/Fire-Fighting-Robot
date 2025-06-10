@@ -28,11 +28,5 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}/
 )
 
-# This is important for the messages to be found by Python
-rosidl_generate_interfaces(${PROJECT_NAME}
-  ${msg_files}
-  DEPENDENCIES std_msgs sensor_msgs
-)
 ament_export_dependencies(rosidl_default_runtime)
-
 ament_package()
