@@ -13,6 +13,7 @@ def generate_launch_description():
     subprocess.run(['pkill', '-9', '-f', 'motor_driver_node'], capture_output=True)
     subprocess.run(['pkill', '-9', '-f', 'ydlidar'], capture_output=True)
     subprocess.run(['pkill', '-9', '-f', 'thermal_camera_node'], capture_output=True)
+    subprocess.run(['pkill', '-9', '-f', 'servo_controller_node'], capture_output=True)  # Add servo cleanup
     time.sleep(1)  # Give processes time to fully terminate
     print("Cleanup complete. Starting fresh...")
     
@@ -43,6 +44,15 @@ def generate_launch_description():
             executable='motor_driver_node',
             name='motor_driver',
             parameters=['/home/ubuntu-robot-pi4/ros2_ws/src/Fire-Fighting-Robot/pca9685_motor_driver_py/config/motor_map.yaml'],
+            output='screen'
+        ),
+        
+        # Servo Controller Node - NEW
+        Node(
+            package='servo_controller_py',
+            executable='servo_controller_node',
+            name='servo_controller',
+            parameters=['/home/ubuntu-robot-pi4/ros2_ws/src/Fire-Fighting-Robot/servo_controller_py/config/servo_config.yaml'],
             output='screen'
         ),
         
