@@ -41,11 +41,9 @@ def generate_launch_description():
             output='screen'
         ),
         
-        # Thermal Camera
-        Node(
-            package='mlx90640_driver',
-            executable='thermal_camera_node',
-            name='thermal_camera_node',
+        # Thermal Camera - using direct path
+        ExecuteProcess(
+            cmd=['/home/ubuntu-robot-pi4/ros2_ws/install/mlx90640_driver/bin/thermal_camera_node'],
             output='screen'
         )
     ])
