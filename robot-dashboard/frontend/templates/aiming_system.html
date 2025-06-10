@@ -416,6 +416,7 @@
             }
         }
     </style>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
     <div class="header">
@@ -513,7 +514,7 @@
     </div>
 
     <script>
-        let ws = null;
+        let socket = null;
         let isConnected = false;
 
         // Add log entry
@@ -531,46 +532,47 @@
             }
         }
 
-        // Initialize WebSocket connection
+        // Initialize Socket.IO connection
         function connectWebSocket() {
-            const wsUrl = `ws://${window.location.hostname}:5001`;
-            ws = new WebSocket(wsUrl);
+            socket = io();
 
-            ws.onopen = function() {
-                console.log('WebSocket connected');
+            socket.on('connect', function() {
+                console.log('Socket.IO connected');
                 isConnected = true;
                 updateConnectionStatus(true);
                 addLog('Connected to servo controller', 'success');
                 
                 // Request initial servo state
-                ws.send(JSON.stringify({
-                    type: 'servo_command',
-                    action: 'get_state'
-                }));
-            };
+                socket.emit('request_servo_state');
+            });
 
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                
-                if (data.type === 'servo_state') {
-                    updateServoState(data);
+            socket.on('servo_state', function(data) {
+                updateServoState(data);
+            });
+
+            socket.on('servo_response', function(data) {
+                console.log('Servo response:', data);
+                if (data.result && !data.result.success) {
+                    addLog(`Error: ${data.result.error}`, 'error');
                 }
-            };
+            });
 
-            ws.onclose = function() {
-                console.log('WebSocket disconnected');
+            socket.on('servo_error', function(data) {
+                console.error('Servo error:', data);
+                addLog(`Error: ${data.error}`, 'error');
+            });
+
+            socket.on('disconnect', function() {
+                console.log('Socket.IO disconnected');
                 isConnected = false;
                 updateConnectionStatus(false);
                 addLog('Connection lost - Reconnecting...', 'error');
-                
-                // Attempt to reconnect after 3 seconds
-                setTimeout(connectWebSocket, 3000);
-            };
+            });
 
-            ws.onerror = function(error) {
-                console.error('WebSocket error:', error);
-                addLog('Connection error', 'error');
-            };
+            socket.on('connect_error', function(error) {
+                console.error('Socket.IO connection error:', error);
+                updateConnectionStatus(false);
+            });
         }
 
         // Update connection status display
@@ -655,14 +657,14 @@
 
         // Send servo command
         function sendServoCommand(pan, tilt) {
-            if (!isConnected || !ws) return;
+            if (!isConnected || !socket) return;
             
-            ws.send(JSON.stringify({
+            socket.emit('servo_command', {
                 type: 'servo_command',
                 action: 'move',
                 pan_angle: parseFloat(pan),
                 tilt_angle: parseFloat(tilt)
-            }));
+            });
             
             addLog(`Command sent: Pan ${pan}°, Tilt ${tilt}°`, 'success');
         }
@@ -714,8 +716,8 @@
 
         // Cleanup on page unload
         window.addEventListener('beforeunload', function() {
-            if (ws) {
-                ws.close();
+            if (socket) {
+                socket.disconnect();
             }
         });
     </script>
