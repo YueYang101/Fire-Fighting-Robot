@@ -23,6 +23,7 @@ from backend.config_manager import get_config_manager
 from backend.ros_bridge import get_ros_bridge, get_motor_controller
 from backend.sensors.lidar import get_lidar_sensor
 from backend.sensors.thermal_camera import get_thermal_camera_sensor
+from backend.sensors.system_monitor import get_system_monitor
 from backend.motors.servo_control import ServoController
 
 # Create Flask app
@@ -48,6 +49,7 @@ ros_bridge = get_ros_bridge(CONFIG["PI_IP"], CONFIG["ROS_BRIDGE_PORT"])
 motor_controller = get_motor_controller()
 lidar_sensor = get_lidar_sensor()
 thermal_camera_sensor = get_thermal_camera_sensor()
+system_monitor = get_system_monitor()
 servo_controller = ServoController()
 
 # Set ROS bridge for servo controller
@@ -56,6 +58,7 @@ servo_controller.set_ros_bridge(ros_bridge)
 # Data streaming states
 lidar_streaming = False
 servo_streaming = False
+system_streaming = False
 
 # =============================================================================
 # MAIN DASHBOARD ROUTES
@@ -357,6 +360,50 @@ def unsubscribe_thermal():
     return jsonify({"success": True, "message": "Thermal camera subscription stopped"})
 
 # =============================================================================
+# SYSTEM MONITOR API ROUTES
+# =============================================================================
+
+@app.route('/api/system/status', methods=['GET'])
+def get_system_status_monitor():
+    """Get system monitor status"""
+    latest_status = system_monitor.get_latest_status()
+    
+    return jsonify({
+        "connected": system_monitor.subscription_active,
+        "has_data": latest_status is not None,
+        "data": latest_status,
+        "timestamp": latest_status["timestamp"] if latest_status else None
+    })
+
+@app.route('/api/system/subscribe', methods=['POST'])
+def subscribe_system_monitor():
+    """Start system monitor subscription"""
+    global system_streaming
+    
+    def system_callback(status_data):
+        """Emit system data through WebSocket"""
+        if system_streaming:
+            socketio.emit('system_status', status_data)
+    
+    success = system_monitor.subscribe(callback=system_callback)
+    
+    if success:
+        system_streaming = True
+        return jsonify({"success": True, "message": "System monitor subscription started"})
+    else:
+        return jsonify({"success": False, "error": "Failed to subscribe to system monitor"}), 500
+
+@app.route('/api/system/unsubscribe', methods=['POST'])
+def unsubscribe_system_monitor():
+    """Stop system monitor subscription"""
+    global system_streaming
+    
+    system_streaming = False
+    system_monitor.unsubscribe()
+    
+    return jsonify({"success": True, "message": "System monitor subscription stopped"})
+
+# =============================================================================
 # SYSTEM STATUS ROUTES
 # =============================================================================
 
@@ -376,7 +423,8 @@ def get_system_status():
             "motors": True,
             "lidar": lidar_sensor.subscription_active,
             "thermal": thermal_camera_sensor.subscription_active,
-            "servo": servo_controller.connected
+            "servo": servo_controller.connected,
+            "system_monitor": system_monitor.subscription_active
         }
     }), 200 if ros_connected else 503
 
