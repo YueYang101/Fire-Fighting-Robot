@@ -1,9 +1,21 @@
 #!/usr/bin/env python3
+import subprocess
+import time
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess
 from launch_ros.actions import Node
 
 def generate_launch_description():
+    # Kill any existing ROS processes first to ensure clean start
+    print("Cleaning up any existing ROS processes...")
+    subprocess.run(['pkill', '-9', '-f', 'rosbridge_websocket'], capture_output=True)
+    subprocess.run(['pkill', '-9', '-f', 'rosapi_node'], capture_output=True)
+    subprocess.run(['pkill', '-9', '-f', 'motor_driver_node'], capture_output=True)
+    subprocess.run(['pkill', '-9', '-f', 'ydlidar'], capture_output=True)
+    subprocess.run(['pkill', '-9', '-f', 'thermal_camera_node'], capture_output=True)
+    time.sleep(1)  # Give processes time to fully terminate
+    print("Cleanup complete. Starting fresh...")
+    
     return LaunchDescription([
         # ROSbridge WebSocket - start nodes directly
         Node(
