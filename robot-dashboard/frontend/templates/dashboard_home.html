@@ -158,6 +158,12 @@
             -webkit-text-fill-color: transparent;
         }
 
+        .aiming-icon {
+            background: linear-gradient(45deg, #ff00ff, #aa00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
         .sensor-icon {
             background: linear-gradient(45deg, #ffd93d, #ffb300);
             -webkit-background-clip: text;
@@ -504,6 +510,20 @@
                 </div>
             </div>
 
+            <!-- Aiming System -->
+            <div class="component-card" onclick="navigateTo('/aiming')">
+                <span class="component-icon aiming-icon">🎯</span>
+                <h2 class="component-title">Aiming System</h2>
+                <p class="component-description">
+                    Precision pan/tilt control for targeting system. 
+                    Real-time servo positioning with visual feedback.
+                </p>
+                <div class="component-status" id="aimingStatus">
+                    <div class="status-indicator"></div>
+                    <span>Click to Activate</span>
+                </div>
+            </div>
+
             <!-- Lidar Sensor -->
             <div class="component-card" onclick="navigateTo('/lidar')">
                 <span class="component-icon lidar-icon">📡</span>
@@ -552,11 +572,11 @@
             <div class="info-grid">
                 <div class="info-item">
                     <div class="info-label">Robot IP</div>
-                    <div class="info-value" id="robotIP">Loading...</div>
+                    <div class="info-value" id="robotIPInfo">Loading...</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">ROS Bridge Port</div>
-                    <div class="info-value" id="bridgePort">Loading...</div>
+                    <div class="info-value" id="bridgePortInfo">Loading...</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Active Components</div>
@@ -678,20 +698,29 @@
                 
                 // Update system info
                 if (data.config) {
-                    document.getElementById('robotIP').textContent = data.config.robot_ip;
-                    document.getElementById('bridgePort').textContent = data.config.rosbridge_port;
+                    document.getElementById('robotIPInfo').textContent = data.config.robot_ip;
+                    document.getElementById('bridgePortInfo').textContent = data.config.rosbridge_port;
                 }
                 
                 // Update component status
                 let activeCount = 0;
                 if (data.components) {
                     if (data.components.motors) activeCount++;
+                    
+                    if (data.components.servo) {
+                        activeCount++;
+                        const aimingStatus = document.getElementById('aimingStatus');
+                        aimingStatus.classList.add('active');
+                        aimingStatus.innerHTML = '<div class="status-indicator connected"></div><span>Active</span>';
+                    }
+                    
                     if (data.components.lidar) {
                         activeCount++;
                         const lidarStatus = document.getElementById('lidarStatus');
                         lidarStatus.classList.add('active');
                         lidarStatus.innerHTML = '<div class="status-indicator connected"></div><span>Active</span>';
                     }
+                    
                     if (data.components.thermal) {
                         activeCount++;
                         const thermalStatus = document.getElementById('thermalStatus');

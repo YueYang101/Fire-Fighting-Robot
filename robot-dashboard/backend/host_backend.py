@@ -23,13 +23,14 @@ from backend.config_manager import get_config_manager
 from backend.ros_bridge import get_ros_bridge, get_motor_controller
 from backend.sensors.lidar import get_lidar_sensor
 from backend.sensors.thermal_camera import get_thermal_camera_sensor
+from backend.sensors.servo_control import ServoController
 
 # Create Flask app
 app = Flask(__name__, 
             template_folder='../frontend/templates',
             static_folder='../frontend/static')
 CORS(app)  # Enable CORS for API requests
-socketio = SocketIO(app, cors_allowed_origins="*")  # For real-time lidar data
+socketio = SocketIO(app, cors_allowed_origins="*")  # For real-time data
 
 # Setup logging
 logging.basicConfig(
@@ -47,9 +48,14 @@ ros_bridge = get_ros_bridge(CONFIG["PI_IP"], CONFIG["ROS_BRIDGE_PORT"])
 motor_controller = get_motor_controller()
 lidar_sensor = get_lidar_sensor()
 thermal_camera_sensor = get_thermal_camera_sensor()
+servo_controller = ServoController()
 
-# Lidar data streaming state
+# Set ROS bridge for servo controller
+servo_controller.set_ros_bridge(ros_bridge)
+
+# Data streaming states
 lidar_streaming = False
+servo_streaming = False
 
 # =============================================================================
 # MAIN DASHBOARD ROUTES
@@ -74,6 +80,11 @@ def lidar_page():
 def thermal_page():
     """Serve the thermal camera interface"""
     return render_template('thermal_camera.html')
+
+@app.route('/aiming')
+def aiming_system():
+    """Serve the aiming system control interface"""
+    return render_template('aiming_system.html')
 
 # =============================================================================
 # MOTOR CONTROL API ROUTES
@@ -142,6 +153,81 @@ def stop_all_motors():
         return jsonify(result)
     else:
         return jsonify(result), 500
+
+# =============================================================================
+# SERVO/AIMING SYSTEM API ROUTES
+# =============================================================================
+
+@app.route('/api/servo/position', methods=['POST'])
+def set_servo_position():
+    """Set servo position for pan/tilt"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        pan_angle = data.get('pan_angle', servo_controller.pan_angle)
+        tilt_angle = data.get('tilt_angle', servo_controller.tilt_angle)
+        
+        # Move servos
+        result = servo_controller.move_to_position(pan_angle, tilt_angle)
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        logger.error(f"Error in set_servo_position: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/servo/position', methods=['GET'])
+def get_servo_position():
+    """Get current servo position"""
+    state = servo_controller.get_state()
+    
+    return jsonify({
+        "success": True,
+        "state": state
+    })
+
+@app.route('/api/servo/center', methods=['POST'])
+def center_servos():
+    """Move servos to center position"""
+    result = servo_controller.center_position()
+    
+    if result['success']:
+        return jsonify(result)
+    else:
+        return jsonify(result), 400
+
+@app.route('/api/servo/preset/<string:position>', methods=['POST'])
+def move_to_preset(position):
+    """Move servos to preset position (left, right, up, down)"""
+    preset_functions = {
+        'left': servo_controller.move_left,
+        'right': servo_controller.move_right,
+        'up': servo_controller.move_up,
+        'down': servo_controller.move_down,
+        'center': servo_controller.center_position
+    }
+    
+    if position not in preset_functions:
+        return jsonify({
+            "success": False,
+            "error": f"Invalid preset position: {position}"
+        }), 400
+    
+    result = preset_functions[position]()
+    
+    if result['success']:
+        return jsonify(result)
+    else:
+        return jsonify(result), 400
 
 # =============================================================================
 # LIDAR API ROUTES
@@ -289,7 +375,8 @@ def get_system_status():
         "components": {
             "motors": True,
             "lidar": lidar_sensor.subscription_active,
-            "thermal": thermal_camera_sensor.subscription_active
+            "thermal": thermal_camera_sensor.subscription_active,
+            "servo": servo_controller.connected
         }
     }), 200 if ros_connected else 503
 
@@ -331,11 +418,14 @@ def update_config():
         config_manager.update_config(config_updates)
         
         # Update ROS bridge connection
-        global ros_bridge, motor_controller, lidar_sensor, thermal_camera_sensor
+        global ros_bridge, motor_controller, lidar_sensor, thermal_camera_sensor, servo_controller
         ros_bridge = get_ros_bridge(CONFIG["PI_IP"], CONFIG["ROS_BRIDGE_PORT"])
         motor_controller = get_motor_controller()
         lidar_sensor = get_lidar_sensor()
         thermal_camera_sensor = get_thermal_camera_sensor()
+        
+        # Update servo controller with new ROS bridge
+        servo_controller.set_ros_bridge(ros_bridge)
         
         logger.info(f"Configuration updated and saved: IP={new_ip}, Port={new_port}")
         
@@ -370,6 +460,47 @@ def handle_disconnect():
     """Handle WebSocket disconnection"""
     logger.info("Client disconnected from WebSocket")
 
+# Servo WebSocket events
+@socketio.on('servo_command')
+def handle_servo_command(data):
+    """Handle servo commands via WebSocket"""
+    global servo_streaming
+    
+    try:
+        command_type = data.get('type', 'servo_command')
+        
+        if command_type == 'servo_command':
+            result = servo_controller.handle_websocket_command(data)
+            
+            # Send response
+            emit('servo_response', {
+                'type': 'command_result',
+                'result': result
+            })
+            
+            # Send updated state to all clients
+            state = servo_controller.get_state()
+            socketio.emit('servo_state', {
+                'type': 'servo_state',
+                **state
+            })
+            
+    except Exception as e:
+        logger.error(f"Error handling servo command: {e}")
+        emit('servo_error', {
+            'type': 'error',
+            'error': str(e)
+        })
+
+@socketio.on('request_servo_state')
+def handle_servo_state_request():
+    """Send current servo state via WebSocket"""
+    state = servo_controller.get_state()
+    emit('servo_state', {
+        'type': 'servo_state',
+        **state
+    })
+
 # =============================================================================
 # ERROR HANDLERS
 # =============================================================================
@@ -391,6 +522,27 @@ def health_check():
         "service": "robot-dashboard-backend"
     })
 
+# =============================================================================
+# INITIALIZATION
+# =============================================================================
+
+def initialize_system():
+    """Initialize all system components"""
+    logger.info("Initializing system components...")
+    
+    # Set WebSocket handler for servo updates
+    async def servo_websocket_handler(data):
+        """Handle servo state updates"""
+        socketio.emit('servo_state', data)
+    
+    servo_controller.set_websocket_handler(servo_websocket_handler)
+    
+    # Initialize servo to center position
+    logger.info("Moving servos to center position...")
+    servo_controller.center_position()
+    
+    logger.info("System initialization complete")
+
 def main():
     """Main entry point"""
     logger.info("=" * 50)
@@ -400,6 +552,9 @@ def main():
     logger.info(f"Flask Server: {CONFIG['FLASK_HOST']}:{CONFIG['FLASK_PORT']}")
     logger.info(f"Config file: {config_manager.config_file}")
     logger.info("=" * 50)
+    
+    # Initialize system
+    initialize_system()
     
     # Run Flask app with SocketIO
     debug_mode = os.environ.get('FLASK_ENV', 'development') == 'development'

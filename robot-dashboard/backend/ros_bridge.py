@@ -98,6 +98,77 @@ class ROSBridgeConnection:
             logger.error(f"Service call failed: {e}")
             return False, {"error": str(e)}
     
+    def publish_topic(self, topic_name: str, msg_type: str, msg_data: Dict[str, Any]) -> bool:
+        """
+        Publish a message to a ROS topic
+        
+        Args:
+            topic_name: Name of the ROS topic (e.g., "/servo_position_cmd")
+            msg_type: ROS message type (e.g., "servo_interfaces/msg/ServoPosition")
+            msg_data: Message data as dictionary
+        
+        Returns:
+            bool: True if publish successful, False otherwise
+        """
+        try:
+            # Create a new connection for publishing
+            ws = create_connection(self.url, timeout=5)
+            
+            # First advertise the topic
+            advertise_msg = {
+                "op": "advertise",
+                "topic": topic_name,
+                "type": msg_type
+            }
+            ws.send(json.dumps(advertise_msg))
+            
+            # Then publish the message
+            publish_msg = {
+                "op": "publish",
+                "topic": topic_name,
+                "msg": msg_data
+            }
+            ws.send(json.dumps(publish_msg))
+            
+            # Close connection
+            ws.close()
+            
+            logger.debug(f"Published to {topic_name}: {msg_data}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to publish to topic {topic_name}: {e}")
+            return False
+    
+    def subscribe_topic(self, topic_name: str, callback=None) -> bool:
+        """
+        Subscribe to a ROS topic
+        
+        Args:
+            topic_name: Name of the ROS topic
+            callback: Function to call when message received
+        
+        Returns:
+            bool: True if subscription successful
+        """
+        try:
+            if not self._connection:
+                self.connect()
+            
+            # Subscribe message
+            subscribe_msg = {
+                "op": "subscribe",
+                "topic": topic_name
+            }
+            self._connection.send(json.dumps(subscribe_msg))
+            
+            logger.info(f"Subscribed to topic: {topic_name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to subscribe to topic {topic_name}: {e}")
+            return False
+    
     def test_connection(self) -> bool:
         """
         Test if rosbridge connection is working
@@ -281,9 +352,55 @@ class MotorController:
         """Get current state of all motors"""
         return self.motor_states.copy()
 
+class ServoPublisher:
+    """High-level servo control interface using ROSBridge"""
+    
+    def __init__(self, ros_bridge: ROSBridgeConnection):
+        """
+        Initialize servo publisher
+        
+        Args:
+            ros_bridge: ROSBridgeConnection instance
+        """
+        self.ros_bridge = ros_bridge
+        self.topic_name = "/servo_position_cmd"
+        self.msg_type = "servo_interfaces/msg/ServoPosition"
+    
+    def publish_position(self, pan_angle: float, tilt_angle: float) -> bool:
+        """
+        Publish servo position command
+        
+        Args:
+            pan_angle: Pan servo angle (75-195 degrees)
+            tilt_angle: Tilt servo angle (75-195 degrees)
+        
+        Returns:
+            bool: True if successful
+        """
+        # Prepare message
+        msg_data = {
+            "pan_angle": pan_angle,
+            "tilt_angle": tilt_angle
+        }
+        
+        # Publish to topic
+        success = self.ros_bridge.publish_topic(
+            self.topic_name,
+            self.msg_type,
+            msg_data
+        )
+        
+        if success:
+            logger.info(f"Published servo position: pan={pan_angle}, tilt={tilt_angle}")
+        else:
+            logger.error(f"Failed to publish servo position")
+        
+        return success
+
 # Create singleton instances for easy import
 _ros_bridge = None
 _motor_controller = None
+_servo_publisher = None
 
 def get_ros_bridge(host: str = None, port: int = None) -> ROSBridgeConnection:
     """Get or create ROSBridge connection instance"""
@@ -317,3 +434,25 @@ def get_motor_controller() -> MotorController:
     if _motor_controller is None:
         _motor_controller = MotorController(get_ros_bridge())
     return _motor_controller
+
+def get_servo_publisher() -> ServoPublisher:
+    """Get or create ServoPublisher instance"""
+    global _servo_publisher
+    if _servo_publisher is None:
+        _servo_publisher = ServoPublisher(get_ros_bridge())
+    return _servo_publisher
+
+# Convenience function for servo control to match the expected interface
+async def publish_servo_position(pan_angle: float, tilt_angle: float) -> bool:
+    """
+    Publish servo position (async wrapper for compatibility)
+    
+    Args:
+        pan_angle: Pan servo angle
+        tilt_angle: Tilt servo angle
+    
+    Returns:
+        bool: Success status
+    """
+    servo_pub = get_servo_publisher()
+    return servo_pub.publish_position(pan_angle, tilt_angle)
