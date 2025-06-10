@@ -25,6 +25,7 @@ from backend.sensors.lidar import get_lidar_sensor
 from backend.sensors.thermal_camera import get_thermal_camera_sensor
 from backend.sensors.system_monitor import get_system_monitor
 from backend.motors.servo_control import ServoController
+from backend.motors.actuator_control import get_actuator_controller
 
 # Create Flask app
 app = Flask(__name__, 
@@ -51,9 +52,11 @@ lidar_sensor = get_lidar_sensor()
 thermal_camera_sensor = get_thermal_camera_sensor()
 system_monitor = get_system_monitor()
 servo_controller = ServoController()
+actuator_controller = get_actuator_controller()
 
 # Set ROS bridge for servo controller
 servo_controller.set_ros_bridge(ros_bridge)
+actuator_controller.set_ros_bridge(ros_bridge)
 
 # Data streaming states
 lidar_streaming = False
@@ -226,6 +229,68 @@ def move_to_preset(position):
         }), 400
     
     result = preset_functions[position]()
+    
+    if result['success']:
+        return jsonify(result)
+    else:
+        return jsonify(result), 400
+
+# =============================================================================
+# ACTUATOR CONTROL API ROUTES
+# =============================================================================
+
+@app.route('/api/actuator/control', methods=['POST'])
+def control_actuator():
+    """Control the actuator for fire extinguisher trigger"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        action = data.get('action', 'stop')
+        speed = data.get('speed', 0)
+        duration = data.get('duration', 0.0)
+        
+        result = actuator_controller.control_actuator(action, speed, duration)
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        logger.error(f"Error in control_actuator: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/actuator/status', methods=['GET'])
+def get_actuator_status():
+    """Get current actuator status"""
+    state = actuator_controller.get_state()
+    
+    return jsonify({
+        "success": True,
+        "state": state
+    })
+
+@app.route('/api/actuator/test', methods=['GET'])
+def test_actuator_connection():
+    """Test actuator connection"""
+    connected = actuator_controller.test_connection()
+    
+    return jsonify({
+        "success": True,
+        "connected": connected,
+        "message": "Actuator service is available" if connected else "Actuator service not responding"
+    })
+
+@app.route('/api/actuator/stop', methods=['POST'])
+def stop_actuator():
+    """Emergency stop for actuator"""
+    result = actuator_controller.emergency_stop()
     
     if result['success']:
         return jsonify(result)
@@ -424,7 +489,8 @@ def get_system_status():
             "lidar": lidar_sensor.subscription_active,
             "thermal": thermal_camera_sensor.subscription_active,
             "servo": servo_controller.connected,
-            "system_monitor": system_monitor.subscription_active
+            "system_monitor": system_monitor.subscription_active,
+            "actuator": actuator_controller.connected
         }
     }), 200 if ros_connected else 503
 
@@ -466,14 +532,15 @@ def update_config():
         config_manager.update_config(config_updates)
         
         # Update ROS bridge connection
-        global ros_bridge, motor_controller, lidar_sensor, thermal_camera_sensor, servo_controller
+        global ros_bridge, motor_controller, lidar_sensor, thermal_camera_sensor, servo_controller, actuator_controller
         ros_bridge = get_ros_bridge(CONFIG["PI_IP"], CONFIG["ROS_BRIDGE_PORT"])
         motor_controller = get_motor_controller()
         lidar_sensor = get_lidar_sensor()
         thermal_camera_sensor = get_thermal_camera_sensor()
         
-        # Update servo controller with new ROS bridge
+        # Update servo and actuator controllers with new ROS bridge
         servo_controller.set_ros_bridge(ros_bridge)
+        actuator_controller.set_ros_bridge(ros_bridge)
         
         logger.info(f"Configuration updated and saved: IP={new_ip}, Port={new_port}")
         

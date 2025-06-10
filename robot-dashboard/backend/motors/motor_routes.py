@@ -1,11 +1,11 @@
 """
 Motor Control Routes Module
 Handles all motor-related API endpoints
+Fixed: Left/Right motor reversal issue
 """
 
 from flask import Blueprint, jsonify, request, render_template
 import logging
-from backend.motor.motor_controller import get_motor_controller
 
 # Create Blueprint
 motor_bp = Blueprint('motors', __name__)
@@ -30,6 +30,7 @@ def motors_page():
 def control_motor(motor_id):
     """Control a specific motor"""
     try:
+        from backend.motors.motor_controller import get_motor_controller
         motor_controller = get_motor_controller()
         data = request.get_json()
         
@@ -57,6 +58,7 @@ def control_motor(motor_id):
 @motor_bp.route('/api/motor/<int:motor_id>', methods=['GET'])
 def get_motor_status(motor_id):
     """Get current status of a specific motor"""
+    from backend.motors.motor_controller import get_motor_controller
     motor_controller = get_motor_controller()
     state = motor_controller.get_motor_state(motor_id)
     
@@ -75,6 +77,7 @@ def get_motor_status(motor_id):
 @motor_bp.route('/api/motors', methods=['GET'])
 def get_all_motors_status():
     """Get current status of all motors"""
+    from backend.motors.motor_controller import get_motor_controller
     motor_controller = get_motor_controller()
     states = motor_controller.get_all_motor_states()
     
@@ -86,6 +89,7 @@ def get_all_motors_status():
 @motor_bp.route('/api/motors/stop', methods=['POST'])
 def stop_all_motors():
     """Emergency stop - brake all motors"""
+    from backend.motors.motor_controller import get_motor_controller
     motor_controller = get_motor_controller()
     result = motor_controller.stop_all_motors()
     
@@ -101,6 +105,7 @@ def init_motor_websocket(socketio):
     @socketio.on('motor_command')
     def handle_motor_command(data):
         """Handle real-time motor commands via WebSocket"""
+        from backend.motors.motor_controller import get_motor_controller
         motor_controller = get_motor_controller()
         motor_id = data.get('motor_id')
         direction = data.get('direction', 'brake')
@@ -116,6 +121,7 @@ def init_motor_websocket(socketio):
     @socketio.on('request_motor_states')
     def handle_motor_states_request():
         """Send current motor states via WebSocket"""
+        from backend.motors.motor_controller import get_motor_controller
         motor_controller = get_motor_controller()
         states = motor_controller.get_all_motor_states()
         socketio.emit('motor_states', states)

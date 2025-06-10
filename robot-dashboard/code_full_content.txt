@@ -1,7 +1,7 @@
 ================================================================================
 FULL CODE CONTENT DUMP
 Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot/robot-dashboard
-Time: 2025-06-10 21:01:22
+Time: 2025-06-10 21:24:29
 ================================================================================
 
 DIRECTORY STRUCTURE:
@@ -13,22 +13,23 @@ DIRECTORY STRUCTURE:
 │   │   ├── motor_routes.py (3.7 KB)
 │   │   └── servo_control.py (6.7 KB)
 │   ├── sensors/
-│   │   ├── __init__.py (280.0 B)
+│   │   ├── __init__.py (390.0 B)
 │   │   ├── lidar.py (8.0 KB)
+│   │   ├── system_monitor.py (7.5 KB)
 │   │   └── thermal_camera.py (7.7 KB)
 │   ├── __init__.py (285.0 B)
 │   ├── config_manager.py (3.3 KB)
-│   ├── host_backend.py (17.6 KB)
+│   ├── host_backend.py (19.4 KB)
 │   └── ros_bridge.py (14.3 KB)
 ├── frontend/
 │   └── templates/
 │       ├── aiming_system.html (24.3 KB)
-│       ├── dashboard_home.html (25.4 KB)
+│       ├── dashboard_home.html (27.7 KB)
 │       ├── lidar_visualization.html (26.8 KB)
 │       ├── motor_control.html (23.3 KB)
 │       └── thermal_camera.html (20.0 KB)
 ├── ui/
-├── code_full_content.txt (197.3 KB)
+├── code_full_content.txt (198.1 KB)
 ├── code_scan_summary.txt (1.3 KB)
 ├── code_scanner.py (12.9 KB)
 ├── requirements.txt (130.0 B)
@@ -37,15 +38,15 @@ DIRECTORY STRUCTURE:
 ================================================================================
 STATISTICS:
 ----------------------------------------
-Total code files: 20
-Total size: 387.0 KB
-Total lines: 11,783
+Total code files: 21
+Total size: 399.4 KB
+Total lines: 12,116
 
 FILES BY CATEGORY:
 ----------------------------------------
-Documentation: 3 files, 198.7 KB, 6,017 lines
-Python: 12 files, 68.4 KB, 2,154 lines
-Web: 5 files, 119.9 KB, 3,612 lines
+Documentation: 3 files, 199.5 KB, 6,039 lines
+Python: 13 files, 77.8 KB, 2,414 lines
+Web: 5 files, 122.2 KB, 3,663 lines
 
 ================================================================================
 FILE CONTENTS:
@@ -53,7 +54,7 @@ FILE CONTENTS:
 
 ================================================================================
 FILE: code_full_content.txt
-Category: Documentation | Size: 197.3 KB | Lines: 5978
+Category: Documentation | Size: 198.1 KB | Lines: 6000
 ================================================================================
 
 ================================================================================
@@ -63,35 +64,36 @@ Category: Documentation | Size: 197.3 KB | Lines: 5978
 FILE: code_scan_summary.txt
 Category: Documentation | Size: 1.3 KB | Lines: 32
 ================================================================================
-Code Scan Summary - 2025-06-10 21:01:22
+Code Scan Summary - 2025-06-10 21:24:29
 Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot/robot-dashboard
-Total files: 20
-Total size: 387.0 KB
-Total lines: 11,783
+Total files: 21
+Total size: 399.4 KB
+Total lines: 12,116
 
 Files by category:
   Documentation: 3 files
-  Python: 12 files
+  Python: 13 files
   Web: 5 files
 
 All code files:
-  code_full_content.txt (Documentation, 197.3 KB)
+  code_full_content.txt (Documentation, 198.1 KB)
   code_scan_summary.txt (Documentation, 1.3 KB)
   requirements.txt (Documentation, 130.0 B)
   backend/__init__.py (Python, 285.0 B)
   backend/config_manager.py (Python, 3.3 KB)
-  backend/host_backend.py (Python, 17.6 KB)
+  backend/host_backend.py (Python, 19.4 KB)
   backend/motors/__init__.py (Python, 0.0 B)
   backend/motors/motor_controller.py (Python, 6.3 KB)
   backend/motors/motor_routes.py (Python, 3.7 KB)
   backend/motors/servo_control.py (Python, 6.7 KB)
   backend/ros_bridge.py (Python, 14.3 KB)
-  backend/sensors/__init__.py (Python, 280.0 B)
+  backend/sensors/__init__.py (Python, 390.0 B)
   backend/sensors/lidar.py (Python, 8.0 KB)
+  backend/sensors/system_monitor.py (Python, 7.5 KB)
   backend/sensors/thermal_camera.py (Python, 7.7 KB)
   run.py (Python, 341.0 B)
   frontend/templates/aiming_system.html (Web, 24.3 KB)
-  frontend/templates/dashboard_home.html (Web, 25.4 KB)
+  frontend/templates/dashboard_home.html (Web, 27.7 KB)
   frontend/templates/lidar_visualization.html (Web, 26.8 KB)
   frontend/templates/motor_control.html (Web, 23.3 KB)
   frontend/templates/thermal_camera.html (Web, 20.0 KB)
@@ -248,7 +250,7 @@ def get_config_manager(config_file: str = None) -> ConfigManager:
 
 ================================================================================
 FILE: backend/host_backend.py
-Category: Python | Size: 17.6 KB | Lines: 571
+Category: Python | Size: 19.4 KB | Lines: 619
 ================================================================================
 #!/usr/bin/env python3
 """
@@ -275,6 +277,7 @@ from backend.config_manager import get_config_manager
 from backend.ros_bridge import get_ros_bridge, get_motor_controller
 from backend.sensors.lidar import get_lidar_sensor
 from backend.sensors.thermal_camera import get_thermal_camera_sensor
+from backend.sensors.system_monitor import get_system_monitor
 from backend.motors.servo_control import ServoController
 
 # Create Flask app
@@ -300,6 +303,7 @@ ros_bridge = get_ros_bridge(CONFIG["PI_IP"], CONFIG["ROS_BRIDGE_PORT"])
 motor_controller = get_motor_controller()
 lidar_sensor = get_lidar_sensor()
 thermal_camera_sensor = get_thermal_camera_sensor()
+system_monitor = get_system_monitor()
 servo_controller = ServoController()
 
 # Set ROS bridge for servo controller
@@ -308,6 +312,7 @@ servo_controller.set_ros_bridge(ros_bridge)
 # Data streaming states
 lidar_streaming = False
 servo_streaming = False
+system_streaming = False
 
 # =============================================================================
 # MAIN DASHBOARD ROUTES
@@ -609,6 +614,50 @@ def unsubscribe_thermal():
     return jsonify({"success": True, "message": "Thermal camera subscription stopped"})
 
 # =============================================================================
+# SYSTEM MONITOR API ROUTES
+# =============================================================================
+
+@app.route('/api/system/status', methods=['GET'])
+def get_system_status_monitor():
+    """Get system monitor status"""
+    latest_status = system_monitor.get_latest_status()
+    
+    return jsonify({
+        "connected": system_monitor.subscription_active,
+        "has_data": latest_status is not None,
+        "data": latest_status,
+        "timestamp": latest_status["timestamp"] if latest_status else None
+    })
+
+@app.route('/api/system/subscribe', methods=['POST'])
+def subscribe_system_monitor():
+    """Start system monitor subscription"""
+    global system_streaming
+    
+    def system_callback(status_data):
+        """Emit system data through WebSocket"""
+        if system_streaming:
+            socketio.emit('system_status', status_data)
+    
+    success = system_monitor.subscribe(callback=system_callback)
+    
+    if success:
+        system_streaming = True
+        return jsonify({"success": True, "message": "System monitor subscription started"})
+    else:
+        return jsonify({"success": False, "error": "Failed to subscribe to system monitor"}), 500
+
+@app.route('/api/system/unsubscribe', methods=['POST'])
+def unsubscribe_system_monitor():
+    """Stop system monitor subscription"""
+    global system_streaming
+    
+    system_streaming = False
+    system_monitor.unsubscribe()
+    
+    return jsonify({"success": True, "message": "System monitor subscription stopped"})
+
+# =============================================================================
 # SYSTEM STATUS ROUTES
 # =============================================================================
 
@@ -628,7 +677,8 @@ def get_system_status():
             "motors": True,
             "lidar": lidar_sensor.subscription_active,
             "thermal": thermal_camera_sensor.subscription_active,
-            "servo": servo_controller.connected
+            "servo": servo_controller.connected,
+            "system_monitor": system_monitor.subscription_active
         }
     }), 200 if ros_connected else 503
 
@@ -1832,7 +1882,7 @@ async def publish_servo_position(pan_angle: float, tilt_angle: float) -> bool:
 
 ================================================================================
 FILE: backend/sensors/__init__.py
-Category: Python | Size: 280.0 B | Lines: 13
+Category: Python | Size: 390.0 B | Lines: 16
 ================================================================================
 """
 Sensor modules for ROS 2 robot
@@ -1840,12 +1890,15 @@ Sensor modules for ROS 2 robot
 
 from .lidar import LidarSensor, get_lidar_sensor
 from .thermal_camera import ThermalCameraSensor, get_thermal_camera_sensor
+from .system_monitor import SystemMonitor, get_system_monitor
 
 __all__ = [
     'LidarSensor',
     'get_lidar_sensor',
     'ThermalCameraSensor',
-    'get_thermal_camera_sensor'
+    'get_thermal_camera_sensor',
+    'SystemMonitor',
+    'get_system_monitor',
 ]
 ================================================================================
 
@@ -2097,6 +2150,222 @@ def get_lidar_sensor():
         from backend.ros_bridge import get_ros_bridge
         _lidar_sensor = LidarSensor(get_ros_bridge())
     return _lidar_sensor
+================================================================================
+
+
+================================================================================
+FILE: backend/sensors/system_monitor.py
+Category: Python | Size: 7.5 KB | Lines: 209
+================================================================================
+#!/usr/bin/env python3
+"""
+System monitor module for ROS 2
+Handles system status subscription and processing
+"""
+
+import json
+import logging
+import threading
+import time
+from typing import Dict, Any, Optional, Callable
+from websocket import create_connection
+
+logger = logging.getLogger(__name__)
+
+class SystemMonitor:
+    """Subscribe to and process system monitor data via ROSBridge"""
+    
+    def __init__(self, ros_bridge):
+        """
+        Initialize system monitor
+        
+        Args:
+            ros_bridge: ROSBridgeConnection instance
+        """
+        self.ros_bridge = ros_bridge
+        self.status_callback = None
+        self.latest_status = None
+        self.subscription_active = False
+        self._ws = None
+        self._ws_thread = None
+        self._stop_thread = False
+        
+        # Default values
+        self.default_status = {
+            "cpu_usage": 0.0,
+            "memory_usage": 0.0,
+            "disk_usage": 0.0,
+            "temperature": 0.0,
+            "timestamp": time.time()
+        }
+        
+    def subscribe(self, callback: Optional[Callable] = None) -> bool:
+        """
+        Subscribe to system status topics
+        
+        Args:
+            callback: Optional callback function for new status data
+        
+        Returns:
+            bool: Success status
+        """
+        try:
+            # Create a dedicated connection for subscription
+            self._ws = create_connection(self.ros_bridge.url, timeout=5)
+            
+            # Subscribe to all system topics
+            topics = [
+                ("/system/cpu_usage", "std_msgs/Float32"),
+                ("/system/memory_usage", "std_msgs/Float32"),
+                ("/system/temperature", "sensor_msgs/Temperature"),
+                ("/system/status_json", "std_msgs/String")
+            ]
+            
+            for topic, msg_type in topics:
+                subscribe_msg = {
+                    "op": "subscribe",
+                    "topic": topic,
+                    "type": msg_type
+                }
+                self._ws.send(json.dumps(subscribe_msg))
+                logger.info(f"Subscribed to {topic}")
+            
+            # Start receiving thread
+            self.subscription_active = True
+            self._stop_thread = False
+            self._ws_thread = threading.Thread(
+                target=self._receive_status_data, 
+                args=(callback,)
+            )
+            self._ws_thread.daemon = True
+            self._ws_thread.start()
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to subscribe to system monitor: {e}")
+            return False
+    
+    def _receive_status_data(self, callback):
+        """Receive status data in separate thread"""
+        current_status = self.default_status.copy()
+        
+        while self.subscription_active and not self._stop_thread:
+            try:
+                response = self._ws.recv()
+                data = json.loads(response)
+                
+                if data.get("op") == "publish":
+                    topic = data.get("topic")
+                    msg = data.get("msg")
+                    
+                    # Update status based on topic
+                    if topic == "/system/cpu_usage":
+                        current_status["cpu_usage"] = msg.get("data", 0.0)
+                    elif topic == "/system/memory_usage":
+                        current_status["memory_usage"] = msg.get("data", 0.0)
+                    elif topic == "/system/temperature":
+                        # Temperature message has a different structure
+                        current_status["temperature"] = msg.get("temperature", 0.0)
+                    elif topic == "/system/status_json":
+                        # Parse JSON status if available
+                        try:
+                            status_data = json.loads(msg.get("data", "{}"))
+                            current_status.update(status_data)
+                        except:
+                            pass
+                    
+                    # Update timestamp
+                    current_status["timestamp"] = time.time()
+                    
+                    # Process the status data
+                    processed = self._process_status_data(current_status)
+                    self.latest_status = processed
+                    
+                    if callback:
+                        callback(processed)
+                        
+            except Exception as e:
+                if self.subscription_active:
+                    logger.error(f"Error receiving status data: {e}")
+                break
+        
+        if self._ws:
+            self._ws.close()
+        logger.info("System monitor subscription thread ended")
+    
+    def _process_status_data(self, status: Dict) -> Dict[str, Any]:
+        """
+        Process raw status data for easier use
+        
+        Args:
+            status: Raw status data
+            
+        Returns:
+            Dict with processed data
+        """
+        return {
+            "cpu_usage": round(status.get("cpu_usage", 0.0), 1),
+            "memory_usage": round(status.get("memory_usage", 0.0), 1),
+            "disk_usage": round(status.get("disk_usage", 0.0), 1),
+            "temperature": round(status.get("temperature", 0.0), 1),
+            "cpu_percent": f"{round(status.get('cpu_usage', 0.0), 1)}%",
+            "memory_percent": f"{round(status.get('memory_usage', 0.0), 1)}%",
+            "disk_percent": f"{round(status.get('disk_usage', 0.0), 1)}%",
+            "temp_celsius": f"{round(status.get('temperature', 0.0), 1)}°C",
+            "timestamp": status.get("timestamp", time.time()),
+            "healthy": status.get("cpu_usage", 0) < 80 and status.get("temperature", 0) < 70
+        }
+    
+    def get_latest_status(self) -> Optional[Dict[str, Any]]:
+        """Get the most recent system status"""
+        return self.latest_status
+    
+    def get_status_once(self) -> Optional[Dict[str, Any]]:
+        """Request system status via service calls (if available)"""
+        try:
+            # Try to get status from service
+            success, response = self.ros_bridge.call_service(
+                "/get_system_status",
+                {},
+                "get_system_status"
+            )
+            
+            if success and response.get("values"):
+                status_data = response["values"]
+                return self._process_status_data({
+                    "cpu_usage": status_data.get("cpu_usage", 0.0),
+                    "memory_usage": status_data.get("memory_usage", 0.0),
+                    "disk_usage": status_data.get("disk_usage", 0.0),
+                    "temperature": status_data.get("temperature", 0.0),
+                    "timestamp": time.time()
+                })
+            else:
+                logger.error("Failed to get system status via service")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error calling system status service: {e}")
+            return None
+    
+    def unsubscribe(self):
+        """Stop subscription"""
+        self.subscription_active = False
+        self._stop_thread = True
+        if self._ws_thread:
+            self._ws_thread.join(timeout=2)
+        logger.info("Unsubscribed from system monitor")
+
+# Singleton instance
+_system_monitor = None
+
+def get_system_monitor():
+    """Get or create SystemMonitor instance"""
+    global _system_monitor
+    if _system_monitor is None:
+        from backend.ros_bridge import get_ros_bridge
+        _system_monitor = SystemMonitor(get_ros_bridge())
+    return _system_monitor
 ================================================================================
 
 
@@ -3108,7 +3377,7 @@ Category: Web | Size: 24.3 KB | Lines: 747
 
 ================================================================================
 FILE: frontend/templates/dashboard_home.html
-Category: Web | Size: 25.4 KB | Lines: 776
+Category: Web | Size: 27.7 KB | Lines: 827
 ================================================================================
 <!DOCTYPE html>
 <html lang="en">
@@ -3698,6 +3967,22 @@ Category: Web | Size: 25.4 KB | Lines: 776
                     <div class="info-label">System Uptime</div>
                     <div class="info-value" id="uptime">00:00:00</div>
                 </div>
+                <div class="info-item">
+                    <div class="info-label">CPU Usage</div>
+                    <div class="info-value" id="cpuUsage">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Memory Usage</div>
+                    <div class="info-value" id="memoryUsage">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">CPU Temperature</div>
+                    <div class="info-value" id="cpuTemp">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Disk Usage</div>
+                    <div class="info-value" id="diskUsage">-</div>
+                </div>
             </div>
         </div>
     </div>
@@ -3852,6 +4137,39 @@ Category: Web | Size: 25.4 KB | Lines: 776
             }
         }
 
+        // Subscribe to system monitor on load
+        async function subscribeSystemMonitor() {
+            try {
+                const response = await fetch('/api/system/subscribe', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('System monitor subscription started');
+                    // Get initial status
+                    updateSystemInfo();
+                }
+            } catch (error) {
+                console.error('Failed to subscribe to system monitor:', error);
+            }
+        }
+
+        // Update system info from monitor
+        async function updateSystemInfo() {
+            try {
+                const response = await fetch('/api/system/status');
+                const data = await response.json();
+                
+                if (data.data) {
+                    document.getElementById('cpuUsage').textContent = data.data.cpu_percent || '-';
+                    document.getElementById('memoryUsage').textContent = data.data.memory_percent || '-';
+                    document.getElementById('cpuTemp').textContent = data.data.temp_celsius || '-';
+                    document.getElementById('diskUsage').textContent = data.data.disk_percent || '-';
+                }
+            } catch (error) {
+                console.error('Error fetching system info:', error);
+            }
+        }
+
         // Update uptime
         let startTime = Date.now();
         function updateUptime() {
@@ -3880,7 +4198,9 @@ Category: Web | Size: 25.4 KB | Lines: 776
             }
             
             checkSystemStatus();
+            subscribeSystemMonitor();
             setInterval(checkSystemStatus, 5000);
+            setInterval(updateSystemInfo, 2000); // Update system info every 2 seconds
             setInterval(updateUptime, 1000);
         }
     </script>
