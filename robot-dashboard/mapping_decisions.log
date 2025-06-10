@@ -1,0 +1,10 @@
+{"timestamp": 1749597327.53862, "type": "background_calibration", "state": "idle", "position": {"x": 0.0, "y": 0.0, "theta": 0.0}, "details": {"samples": 30, "angles_modeled": 192}}
+{"timestamp": 1749597327.554166, "type": "mapping_started", "state": "idle", "position": {"x": 0.0, "y": 0.0, "theta": 0.0}, "details": {"grid_size": 5000, "grid_resolution": 10, "safety_distance": 300}}
+{"timestamp": 1749597329.5591722, "type": "360_scan", "state": "idle", "position": {"x": 0.0, "y": 0.0, "theta": 0.0}, "details": {"reason": "exploration"}}
+{"timestamp": 1749597332.235622, "type": "background_calibration", "state": "idle", "position": {"x": 0.0, "y": 0.0, "theta": 0.0}, "details": {"samples": 30, "angles_modeled": 192}}
+{"timestamp": 1749597340.5608032, "type": "safety_parameters_updated", "state": "idle", "position": {"x": 0.0, "y": 0.0, "theta": 0.0}, "details": {"critical": 200, "safety": 300, "wall_follow": 300}}
+{"timestamp": 1749597659.4164941, "type": "background_calibration", "state": "idle", "position": {"x": 0.0, "y": 0.0, "theta": 0.0}, "details": {"samples": 30, "angles_modeled": 199}}
+{"timestamp": 1749597659.4179819, "type": "mapping_started", "state": "idle", "position": {"x": 0.0, "y": 0.0, "theta": 0.0}, "details": {"grid_size": 5000, "grid_resolution": 10, "safety_distance": 300}}
+{"timestamp": 1749597661.419521, "type": "360_scan", "state": "idle", "position": {"x": 0.0, "y": 0.0, "theta": 0.0}, "details": {"reason": "exploration"}}
+{"timestamp": 1749597675.513298, "type": "safety_parameters_updated", "state": "idle", "position": {"x": 0.0, "y": 0.0, "theta": 0.0}, "details": {"critical": 200, "safety": 300, "wall_follow": 300}}
+{"timestamp": 1749597680.000541, "type": "background_calibration", "state": "idle", "position": {"x": 0.0, "y": 0.0, "theta": 0.0}, "details": {"samples": 30, "angles_modeled": 199}}
