@@ -1,263 +1,406 @@
+#!/bin/bash
+
+# ROS2 System Monitor Package Generator
+# This script creates a complete ROS2 Humble package for system monitoring
+
+PACKAGE_NAME="system_monitor"
+WORKSPACE_NAME="system_monitor_ws"
+
+echo "🚀 Creating ROS2 System Monitor Package..."
+
+# Create workspace structure
+mkdir -p $WORKSPACE_NAME/src
+cd $WORKSPACE_NAME/src
+
+# Create package directory structure
+mkdir -p $PACKAGE_NAME/$PACKAGE_NAME
+mkdir -p $PACKAGE_NAME/launch
+mkdir -p $PACKAGE_NAME/msg
+
+# Create package.xml
+cat > $PACKAGE_NAME/package.xml << 'EOF'
+<?xml version="1.0"?>
+<package format="3">
+  <name>system_monitor</name>
+  <version>0.1.0</version>
+  <description>ROS2 package for monitoring system metrics on Raspberry Pi</description>
+  <maintainer email="your_email@example.com">Your Name</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+  
+  <build_depend>rosidl_default_generators</build_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
+  
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
+EOF
+
+# Create CMakeLists.txt
+cat > $PACKAGE_NAME/CMakeLists.txt << 'EOF'
+cmake_minimum_required(VERSION 3.5)
+project(system_monitor)
+
+# Find dependencies
+find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
+find_package(rclpy REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+
+# Generate custom messages
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/SystemLoad.msg"
+  "msg/ProcessInfo.msg"
+  "msg/NetworkStats.msg"
+  "msg/DiskUsage.msg"
+  "msg/SystemStatus.msg"
+  DEPENDENCIES std_msgs sensor_msgs
+)
+
+# Install Python modules
+ament_python_install_package(${PROJECT_NAME})
+
+# Install Python scripts
+install(PROGRAMS
+  ${PROJECT_NAME}/system_monitor_node.py
+  ${PROJECT_NAME}/system_info_publisher.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install launch files
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+ament_package()
+EOF
+
+# Create setup.py
+cat > $PACKAGE_NAME/setup.py << 'EOF'
+from setuptools import setup
+
+package_name = 'system_monitor'
+
+setup(
+    name=package_name,
+    version='0.1.0',
+    packages=[package_name],
+    data_files=[
+        ('share/ament_index/resource_index/packages',
+            ['resource/' + package_name]),
+        ('share/' + package_name, ['package.xml']),
+    ],
+    install_requires=['setuptools'],
+    zip_safe=True,
+    maintainer='Your Name',
+    maintainer_email='your_email@example.com',
+    description='ROS2 System Monitor for Raspberry Pi',
+    license='MIT',
+    tests_require=['pytest'],
+)
+EOF
+
+# Create custom message files
+cat > $PACKAGE_NAME/msg/SystemLoad.msg << 'EOF'
+# System Load Message
+std_msgs/Header header
+float32 cpu_percent
+float32[] cpu_percent_per_core
+float32 memory_percent
+float32 memory_used_gb
+float32 memory_total_gb
+float32 swap_percent
+float32[3] load_average  # 1min, 5min, 15min
+EOF
+
+cat > $PACKAGE_NAME/msg/ProcessInfo.msg << 'EOF'
+# Process Information Message
+string name
+int32 pid
+float32 cpu_percent
+float32 memory_percent
+EOF
+
+cat > $PACKAGE_NAME/msg/NetworkStats.msg << 'EOF'
+# Network Statistics Message
+float32 bytes_sent_mb
+float32 bytes_recv_mb
+int64 packets_sent
+int64 packets_recv
+int32 errors_in
+int32 errors_out
+EOF
+
+cat > $PACKAGE_NAME/msg/DiskUsage.msg << 'EOF'
+# Disk Usage Message
+string mount_point
+string device
+float32 percent
+float32 used_gb
+float32 total_gb
+float32 free_gb
+EOF
+
+cat > $PACKAGE_NAME/msg/SystemStatus.msg << 'EOF'
+# Complete System Status Message
+std_msgs/Header header
+string hostname
+float32 cpu_temperature
+float32 gpu_temperature
+SystemLoad system_load
+NetworkStats network_stats
+DiskUsage[] disk_usage
+ProcessInfo[] top_cpu_processes
+ProcessInfo[] top_memory_processes
+int32 process_count
+int32 thread_count
+float32 uptime_hours
+EOF
+
+# Create __init__.py
+cat > $PACKAGE_NAME/$PACKAGE_NAME/__init__.py << 'EOF'
+# System Monitor Package
+EOF
+
+# Create the main system monitor node
+cat > $PACKAGE_NAME/$PACKAGE_NAME/system_monitor_node.py << 'EOF'
 #!/usr/bin/env python3
 """
-Complete script to create the ROS2 linear actuator controller package
-Run this script to generate all necessary files and directories
-"""
-
-import os
-import sys
-
-def create_directory_structure():
-    """Create all necessary directories"""
-    directories = [
-        "actuator_controller/actuator_controller",
-        "actuator_controller/launch",
-        "actuator_controller/config",
-        "actuator_controller/resource",
-        "actuator_interfaces/srv"
-    ]
-    
-    for directory in directories:
-        os.makedirs(directory, exist_ok=True)
-        print(f"Created directory: {directory}")
-    
-    # Create empty files
-    open("actuator_controller/actuator_controller/__init__.py", 'a').close()
-    open("actuator_controller/resource/actuator_controller", 'a').close()
-
-def create_actuator_node():
-    """Create the main actuator controller node"""
-    content = '''#!/usr/bin/env python3
-"""
-ROS2 Node for Linear Actuator Control using PCA9685
-Controls a DC linear actuator through channels 4-5 on PCA9685
+ROS2 System Monitor Node
+Publishes system metrics for Raspberry Pi
 """
 
 import rclpy
 from rclpy.node import Node
-from actuator_interfaces.srv import SetActuator
-import time
-import threading
+from std_msgs.msg import Header, Float32, String
+from sensor_msgs.msg import Temperature
+import psutil
+import os
+import subprocess
+import json
+from datetime import datetime
 
-try:
-    import board
-    import busio
-    import adafruit_pca9685
-    HARDWARE_AVAILABLE = True
-except ImportError:
-    HARDWARE_AVAILABLE = False
-    print("Warning: PCA9685 hardware not available - running in simulation mode")
-    
-    # Dummy classes for testing
-    class DummyChannel:
-        def __init__(self):
-            self.duty_cycle = 0
-    
-    class DummyPCA:
-        def __init__(self):
-            self.channels = [DummyChannel() for _ in range(16)]
-            self.frequency = 1000
+# Import custom messages (will be generated)
+from system_monitor.msg import (
+    SystemLoad, ProcessInfo, NetworkStats, 
+    DiskUsage, SystemStatus
+)
 
 
-class LinearActuatorNode(Node):
+class SystemMonitorNode(Node):
     def __init__(self):
-        super().__init__('linear_actuator_node')
+        super().__init__('system_monitor_node')
         
         # Declare parameters
-        self.declare_parameter('in1_channel', 4)
-        self.declare_parameter('in2_channel', 5)
-        self.declare_parameter('pwm_frequency', 1000)
-        self.declare_parameter('max_extend_time', 8.0)
+        self.declare_parameter('publish_rate', 1.0)  # Hz
+        self.declare_parameter('enable_detailed_logs', False)
         
         # Get parameters
-        self.in1_channel = self.get_parameter('in1_channel').value
-        self.in2_channel = self.get_parameter('in2_channel').value
-        self.pwm_frequency = self.get_parameter('pwm_frequency').value
-        self.max_extend_time = self.get_parameter('max_extend_time').value
+        self.publish_rate = self.get_parameter('publish_rate').value
+        self.enable_detailed_logs = self.get_parameter('enable_detailed_logs').value
         
-        # Initialize PCA9685
-        if HARDWARE_AVAILABLE:
-            self.i2c = busio.I2C(board.SCL, board.SDA)
-            self.pca = adafruit_pca9685.PCA9685(self.i2c)
-            self.pca.frequency = self.pwm_frequency
-        else:
-            self.get_logger().warn('Hardware not available - running in simulation mode')
-            self.pca = DummyPCA()
+        # Create publishers
+        self.temp_pub = self.create_publisher(Temperature, 'system/temperature', 10)
+        self.cpu_pub = self.create_publisher(Float32, 'system/cpu_usage', 10)
+        self.memory_pub = self.create_publisher(Float32, 'system/memory_usage', 10)
+        self.system_load_pub = self.create_publisher(SystemLoad, 'system/load', 10)
+        self.network_pub = self.create_publisher(NetworkStats, 'system/network', 10)
+        self.status_pub = self.create_publisher(SystemStatus, 'system/status', 10)
+        self.json_pub = self.create_publisher(String, 'system/status_json', 10)
         
-        # State tracking
-        self.current_action = "stop"
-        self.current_speed = 0
-        self.extend_start_time = None
-        self.is_extending = False
-        self.movement_thread = None
+        # Create timer
+        self.timer = self.create_timer(1.0 / self.publish_rate, self.timer_callback)
         
-        # Create service
-        self.srv = self.create_service(
-            SetActuator,
-            'set_actuator',
-            self.handle_actuator_request
-        )
-        
-        # Create timer for safety checks
-        self.safety_timer = self.create_timer(0.1, self.safety_check_callback)
-        
-        # Create timer for status publishing
-        self.status_timer = self.create_timer(1.0, self.publish_status)
-        
-        self.get_logger().info(
-            f'Linear actuator node initialized - IN1: ch{self.in1_channel}, '
-            f'IN2: ch{self.in2_channel}, Max extend: {self.max_extend_time}s'
-        )
-        
-        # Initialize to stopped state
-        self.stop()
+        self.get_logger().info(f'System Monitor Node started (rate: {self.publish_rate} Hz)')
     
-    def handle_actuator_request(self, request, response):
-        """Handle actuator control service requests"""
+    def get_cpu_temperature(self):
+        """Get CPU temperature"""
         try:
-            action = request.action.lower()
-            speed = max(0, min(100, request.speed))
-            duration = max(0, request.duration)
-            
-            self.get_logger().info(
-                f'Received command: action={action}, speed={speed}, duration={duration}'
-            )
-            
-            # Stop any existing movement
-            if self.movement_thread and self.movement_thread.is_alive():
-                self.stop()
-                time.sleep(0.1)
-            
-            # Execute action
-            if action == 'extend':
-                self.extend(speed)
-                if duration > 0:
-                    # Start timed operation in thread
-                    self.movement_thread = threading.Thread(
-                        target=self._timed_operation,
-                        args=(duration,)
-                    )
-                    self.movement_thread.daemon = True
-                    self.movement_thread.start()
-                    
-            elif action == 'retract':
-                self.retract(speed)
-                if duration > 0:
-                    self.movement_thread = threading.Thread(
-                        target=self._timed_operation,
-                        args=(duration,)
-                    )
-                    self.movement_thread.daemon = True
-                    self.movement_thread.start()
-                    
-            elif action == 'stop':
-                self.stop()
-            else:
-                response.success = False
-                response.message = f"Unknown action: {action}. Use 'extend', 'retract', or 'stop'"
-                return response
-            
-            response.success = True
-            response.message = f"Actuator {action} at {speed}% speed"
-            if duration > 0:
-                response.message += f" for {duration} seconds"
-            
-        except Exception as e:
-            self.get_logger().error(f'Error handling request: {str(e)}')
-            response.success = False
-            response.message = str(e)
-        
-        return response
+            with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
+                return float(f.read()) / 1000.0
+        except:
+            try:
+                result = subprocess.check_output(['vcgencmd', 'measure_temp']).decode()
+                return float(result.replace('temp=', '').replace("'C\\n", ''))
+            except:
+                return -1.0
     
-    def _timed_operation(self, duration):
-        """Run operation for specified duration then stop"""
-        time.sleep(duration)
-        self.stop()
-        self.get_logger().info(f'Timed operation completed after {duration} seconds')
+    def get_gpu_temperature(self):
+        """Get GPU temperature for Raspberry Pi"""
+        try:
+            result = subprocess.check_output(['vcgencmd', 'measure_temp', 'gpu']).decode()
+            return float(result.replace('temp=', '').replace("'C\\n", ''))
+        except:
+            return -1.0
     
-    def extend(self, speed=100):
-        """Extend the linear actuator"""
-        duty_cycle = int((speed / 100.0) * 65535)
+    def get_system_load(self):
+        """Get system load information"""
+        msg = SystemLoad()
+        msg.header.stamp = self.get_clock().now().to_msg()
         
-        # Set PWM values
-        self.pca.channels[self.in1_channel].duty_cycle = duty_cycle
-        self.pca.channels[self.in2_channel].duty_cycle = 0
+        # CPU info
+        msg.cpu_percent = psutil.cpu_percent(interval=0.1)
+        msg.cpu_percent_per_core = list(psutil.cpu_percent(interval=0.1, percpu=True))
         
-        # Update state
-        self.current_action = "extend"
-        self.current_speed = speed
-        self.is_extending = True
-        self.extend_start_time = time.time()
+        # Memory info
+        mem = psutil.virtual_memory()
+        msg.memory_percent = mem.percent
+        msg.memory_used_gb = mem.used / (1024**3)
+        msg.memory_total_gb = mem.total / (1024**3)
         
-        self.get_logger().info(f'Extending at {speed}% (duty cycle: {duty_cycle})')
+        # Swap info
+        swap = psutil.swap_memory()
+        msg.swap_percent = swap.percent
+        
+        # Load average
+        msg.load_average = list(psutil.getloadavg())
+        
+        return msg
     
-    def retract(self, speed=100):
-        """Retract the linear actuator"""
-        duty_cycle = int((speed / 100.0) * 65535)
+    def get_network_stats(self):
+        """Get network statistics"""
+        msg = NetworkStats()
+        net_io = psutil.net_io_counters()
         
-        # Set PWM values
-        self.pca.channels[self.in1_channel].duty_cycle = 0
-        self.pca.channels[self.in2_channel].duty_cycle = duty_cycle
+        msg.bytes_sent_mb = net_io.bytes_sent / (1024**2)
+        msg.bytes_recv_mb = net_io.bytes_recv / (1024**2)
+        msg.packets_sent = net_io.packets_sent
+        msg.packets_recv = net_io.packets_recv
+        msg.errors_in = net_io.errin
+        msg.errors_out = net_io.errout
         
-        # Update state
-        self.current_action = "retract"
-        self.current_speed = speed
-        self.is_extending = False
-        self.extend_start_time = None
-        
-        self.get_logger().info(f'Retracting at {speed}% (duty cycle: {duty_cycle})')
+        return msg
     
-    def stop(self):
-        """Stop the linear actuator"""
-        # Set both channels to 0
-        self.pca.channels[self.in1_channel].duty_cycle = 0
-        self.pca.channels[self.in2_channel].duty_cycle = 0
+    def get_disk_usage(self):
+        """Get disk usage for all partitions"""
+        disk_msgs = []
+        partitions = psutil.disk_partitions()
         
-        # Update state
-        self.current_action = "stop"
-        self.current_speed = 0
-        self.is_extending = False
-        self.extend_start_time = None
+        for partition in partitions:
+            try:
+                usage = psutil.disk_usage(partition.mountpoint)
+                msg = DiskUsage()
+                msg.mount_point = partition.mountpoint
+                msg.device = partition.device
+                msg.percent = usage.percent
+                msg.used_gb = usage.used / (1024**3)
+                msg.total_gb = usage.total / (1024**3)
+                msg.free_gb = usage.free / (1024**3)
+                disk_msgs.append(msg)
+            except PermissionError:
+                continue
         
-        self.get_logger().info('Actuator stopped')
+        return disk_msgs
     
-    def safety_check_callback(self):
-        """Check for safety timeout on extension"""
-        if self.is_extending and self.extend_start_time:
-            elapsed = time.time() - self.extend_start_time
-            
-            if elapsed >= self.max_extend_time:
-                self.get_logger().warn(
-                    f'SAFETY STOP: Extension time limit ({self.max_extend_time}s) reached!'
-                )
-                self.stop()
+    def get_top_processes(self, by='cpu', top_n=5):
+        """Get top N processes by CPU or memory"""
+        processes = []
+        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+            try:
+                processes.append(proc.info)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        
+        key = 'cpu_percent' if by == 'cpu' else 'memory_percent'
+        sorted_procs = sorted(processes, key=lambda x: x[key], reverse=True)[:top_n]
+        
+        process_msgs = []
+        for proc in sorted_procs:
+            msg = ProcessInfo()
+            msg.name = proc['name']
+            msg.pid = proc['pid']
+            msg.cpu_percent = proc['cpu_percent']
+            msg.memory_percent = proc['memory_percent']
+            process_msgs.append(msg)
+        
+        return process_msgs
     
-    def publish_status(self):
-        """Publish current status (for debugging)"""
-        status = {
-            'action': self.current_action,
-            'speed': self.current_speed,
-            'is_extending': self.is_extending,
-            'hardware_available': HARDWARE_AVAILABLE
+    def timer_callback(self):
+        """Main timer callback to publish all metrics"""
+        # Temperature
+        temp_msg = Temperature()
+        temp_msg.header.stamp = self.get_clock().now().to_msg()
+        temp_msg.header.frame_id = "cpu"
+        temp_msg.temperature = self.get_cpu_temperature()
+        temp_msg.variance = 0.0
+        self.temp_pub.publish(temp_msg)
+        
+        # Simple CPU and Memory
+        cpu_msg = Float32()
+        cpu_msg.data = psutil.cpu_percent(interval=0.1)
+        self.cpu_pub.publish(cpu_msg)
+        
+        memory_msg = Float32()
+        memory_msg.data = psutil.virtual_memory().percent
+        self.memory_pub.publish(memory_msg)
+        
+        # Detailed system load
+        system_load = self.get_system_load()
+        self.system_load_pub.publish(system_load)
+        
+        # Network stats
+        network_stats = self.get_network_stats()
+        self.network_pub.publish(network_stats)
+        
+        # Complete system status
+        status_msg = SystemStatus()
+        status_msg.header.stamp = self.get_clock().now().to_msg()
+        status_msg.hostname = os.uname().nodename
+        status_msg.cpu_temperature = self.get_cpu_temperature()
+        status_msg.gpu_temperature = self.get_gpu_temperature()
+        status_msg.system_load = system_load
+        status_msg.network_stats = network_stats
+        status_msg.disk_usage = self.get_disk_usage()
+        status_msg.top_cpu_processes = self.get_top_processes('cpu')
+        status_msg.top_memory_processes = self.get_top_processes('memory')
+        status_msg.process_count = len(psutil.pids())
+        status_msg.thread_count = sum([p.num_threads() for p in psutil.process_iter(['num_threads'])])
+        status_msg.uptime_hours = (psutil.time.time() - psutil.boot_time()) / 3600.0
+        
+        self.status_pub.publish(status_msg)
+        
+        # Also publish as JSON for easy consumption
+        json_data = {
+            'timestamp': datetime.now().isoformat(),
+            'hostname': status_msg.hostname,
+            'cpu_temperature': status_msg.cpu_temperature,
+            'gpu_temperature': status_msg.gpu_temperature,
+            'cpu_percent': cpu_msg.data,
+            'memory_percent': memory_msg.data,
+            'uptime_hours': status_msg.uptime_hours,
+            'process_count': status_msg.process_count
         }
+        json_msg = String()
+        json_msg.data = json.dumps(json_data)
+        self.json_pub.publish(json_msg)
         
-        if self.is_extending and self.extend_start_time:
-            status['extend_elapsed'] = time.time() - self.extend_start_time
-            status['extend_remaining'] = max(0, self.max_extend_time - status['extend_elapsed'])
-        
-        self.get_logger().debug(f'Status: {status}')
-    
-    def destroy_node(self):
-        """Cleanup on shutdown"""
-        self.get_logger().info('Shutting down - stopping actuator')
-        self.stop()
-        super().destroy_node()
+        if self.enable_detailed_logs:
+            self.get_logger().info(
+                f'CPU: {cpu_msg.data:.1f}% | '
+                f'Memory: {memory_msg.data:.1f}% | '
+                f'Temp: {status_msg.cpu_temperature:.1f}°C'
+            )
 
 
 def main(args=None):
     rclpy.init(args=args)
-    
-    node = LinearActuatorNode()
+    node = SystemMonitorNode()
     
     try:
         rclpy.spin(node)
@@ -270,306 +413,286 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-'''
-    
-    with open("actuator_controller/actuator_controller/actuator_node.py", "w") as f:
-        f.write(content)
-    print("Created actuator_node.py")
+EOF
 
-def create_launch_file():
-    """Create the launch file"""
-    content = '''from launch import LaunchDescription
-from launch_ros.actions import Node
-from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
-import os
-from ament_index_python.packages import get_package_share_directory
-
-
-def generate_launch_description():
-    # Get the package directory
-    pkg_dir = get_package_share_directory('actuator_controller')
-    
-    # Path to config file
-    config_file = os.path.join(pkg_dir, 'config', 'actuator_config.yaml')
-    
-    return LaunchDescription([
-        # Declare launch arguments
-        DeclareLaunchArgument(
-            'config_file',
-            default_value=config_file,
-            description='Path to actuator configuration file'
-        ),
-        
-        # Linear actuator controller node
-        Node(
-            package='actuator_controller',
-            executable='actuator_node',
-            name='linear_actuator_controller',
-            output='screen',
-            parameters=[LaunchConfiguration('config_file')],
-            respawn=True,
-            respawn_delay=2.0
-        )
-    ])
-'''
-    
-    with open("actuator_controller/launch/actuator_launch.py", "w") as f:
-        f.write(content)
-    print("Created actuator_launch.py")
-
-def create_package_files():
-    """Create all package configuration files"""
-    files = {
-        "actuator_controller/package.xml": '''<?xml version="1.0"?>
-<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
-<package format="3">
-  <name>actuator_controller</name>
-  <version>0.0.1</version>
-  <description>ROS2 package for controlling linear actuator via PCA9685</description>
-  <maintainer email="your_email@example.com">Your Name</maintainer>
-  <license>Apache-2.0</license>
-
-  <buildtool_depend>ament_python</buildtool_depend>
-
-  <exec_depend>rclpy</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <exec_depend>actuator_interfaces</exec_depend>
-
-  <test_depend>ament_copyright</test_depend>
-  <test_depend>ament_flake8</test_depend>
-  <test_depend>ament_pep257</test_depend>
-  <test_depend>python3-pytest</test_depend>
-
-  <export>
-    <build_type>ament_python</build_type>
-  </export>
-</package>
-''',
-
-        "actuator_controller/setup.py": '''from setuptools import setup
-import os
-from glob import glob
-
-package_name = 'actuator_controller'
-
-setup(
-    name=package_name,
-    version='0.0.1',
-    packages=[package_name],
-    data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + package_name]),
-        ('share/' + package_name, ['package.xml']),
-        (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
-        (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
-    ],
-    install_requires=['setuptools'],
-    zip_safe=True,
-    maintainer='Your Name',
-    maintainer_email='your_email@example.com',
-    description='ROS2 package for controlling linear actuator via PCA9685',
-    license='Apache-2.0',
-    tests_require=['pytest'],
-    entry_points={
-        'console_scripts': [
-            'actuator_node = actuator_controller.actuator_node:main',
-        ],
-    },
-)
-''',
-
-        "actuator_controller/setup.cfg": '''[develop]
-script_dir=$base/lib/actuator_controller
-[install]
-install_scripts=$base/lib/actuator_controller
-''',
-
-        "actuator_controller/config/actuator_config.yaml": '''linear_actuator_controller:
-  ros__parameters:
-    # PCA9685 channel configuration
-    in1_channel: 4      # Channel for IN1 (extend)
-    in2_channel: 5      # Channel for IN2 (retract)
-    
-    # PWM settings
-    pwm_frequency: 1000  # Hz
-    
-    # Safety settings
-    max_extend_time: 8.0  # Maximum extension time in seconds
-''',
-
-        "actuator_interfaces/package.xml": '''<?xml version="1.0"?>
-<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
-<package format="3">
-  <name>actuator_interfaces</name>
-  <version>0.0.1</version>
-  <description>Custom services for linear actuator control</description>
-  <maintainer email="your_email@example.com">Your Name</maintainer>
-  <license>Apache-2.0</license>
-
-  <buildtool_depend>ament_cmake</buildtool_depend>
-  <buildtool_depend>rosidl_default_generators</buildtool_depend>
-
-  <depend>std_msgs</depend>
-
-  <exec_depend>rosidl_default_runtime</exec_depend>
-
-  <member_of_group>rosidl_interface_packages</member_of_group>
-
-  <export>
-    <build_type>ament_cmake</build_type>
-  </export>
-</package>
-''',
-
-        "actuator_interfaces/CMakeLists.txt": '''cmake_minimum_required(VERSION 3.8)
-project(actuator_interfaces)
-
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
-
-find_package(ament_cmake REQUIRED)
-find_package(std_msgs REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
-
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "srv/SetActuator.srv"
-  DEPENDENCIES std_msgs
-)
-
-ament_export_dependencies(rosidl_default_runtime)
-ament_package()
-''',
-
-        "actuator_interfaces/srv/SetActuator.srv": '''# Service for controlling linear actuator
-string action      # "extend", "retract", or "stop"
-int32 speed        # Speed percentage (0-100)
-float32 duration   # Optional duration in seconds (0 = continuous)
----
-bool success       # True if command was accepted
-string message     # Response message
-'''
-    }
-    
-    for filepath, content in files.items():
-        with open(filepath, "w") as f:
-            f.write(content)
-        print(f"Created {filepath}")
-
-def create_test_script():
-    """Create a test script for the actuator"""
-    content = '''#!/usr/bin/env python3
+# Create a simple publisher example
+cat > $PACKAGE_NAME/$PACKAGE_NAME/system_info_publisher.py << 'EOF'
+#!/usr/bin/env python3
 """
-Test script for linear actuator ROS2 service
+Simple System Info Publisher
+Publishes basic system information at regular intervals
 """
 
 import rclpy
 from rclpy.node import Node
-from actuator_interfaces.srv import SetActuator
-import sys
+from std_msgs.msg import String
+import psutil
+import json
+from datetime import datetime
 
 
-class ActuatorTestClient(Node):
+class SystemInfoPublisher(Node):
     def __init__(self):
-        super().__init__('actuator_test_client')
-        self.cli = self.create_client(SetActuator, 'set_actuator')
+        super().__init__('system_info_publisher')
+        self.publisher_ = self.create_publisher(String, 'system_info', 10)
+        timer_period = 2.0  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.get_logger().info('System Info Publisher started')
+
+    def timer_callback(self):
+        msg = String()
         
-        while not self.cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Service not available, waiting...')
-    
-    def send_request(self, action, speed=100, duration=0):
-        request = SetActuator.Request()
-        request.action = action
-        request.speed = speed
-        request.duration = duration
+        # Collect system info
+        info = {
+            'timestamp': datetime.now().isoformat(),
+            'cpu_percent': psutil.cpu_percent(interval=1),
+            'memory_percent': psutil.virtual_memory().percent,
+            'disk_percent': psutil.disk_usage('/').percent,
+            'boot_time': datetime.fromtimestamp(psutil.boot_time()).isoformat(),
+            'network_bytes_sent': psutil.net_io_counters().bytes_sent,
+            'network_bytes_recv': psutil.net_io_counters().bytes_recv
+        }
         
-        self.future = self.cli.call_async(request)
-        rclpy.spin_until_future_complete(self, self.future)
+        msg.data = json.dumps(info, indent=2)
+        self.publisher_.publish(msg)
         
-        response = self.future.result()
-        self.get_logger().info(f'Response: success={response.success}, message="{response.message}"')
-        return response
+        self.get_logger().info(f'Publishing: CPU={info["cpu_percent"]:.1f}%, MEM={info["memory_percent"]:.1f}%')
 
 
-def main():
-    rclpy.init()
-    client = ActuatorTestClient()
-    
-    if len(sys.argv) < 2:
-        print("Usage: ros2 run actuator_controller test_actuator <action> [speed] [duration]")
-        print("  action: extend, retract, stop")
-        print("  speed: 0-100 (default: 100)")
-        print("  duration: seconds (default: 0 = continuous)")
-        return
-    
-    action = sys.argv[1]
-    speed = int(sys.argv[2]) if len(sys.argv) > 2 else 100
-    duration = float(sys.argv[3]) if len(sys.argv) > 3 else 0
-    
-    client.send_request(action, speed, duration)
-    
-    client.destroy_node()
+def main(args=None):
+    rclpy.init(args=args)
+    publisher = SystemInfoPublisher()
+    rclpy.spin(publisher)
+    publisher.destroy_node()
     rclpy.shutdown()
 
 
 if __name__ == '__main__':
     main()
-'''
-    
-    with open("actuator_controller/actuator_controller/test_actuator.py", "w") as f:
-        f.write(content)
-    print("Created test_actuator.py")
+EOF
 
-def update_setup_py():
-    """Update setup.py to include test script"""
-    with open("actuator_controller/setup.py", "r") as f:
-        content = f.read()
-    
-    # Add test_actuator to console_scripts
-    content = content.replace(
-        "'actuator_node = actuator_controller.actuator_node:main',",
-        "'actuator_node = actuator_controller.actuator_node:main',\n            'test_actuator = actuator_controller.test_actuator:main',"
+# Create launch file
+cat > $PACKAGE_NAME/launch/system_monitor_launch.py << 'EOF'
+from launch import LaunchDescription
+from launch_ros.actions import Node
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+
+
+def generate_launch_description():
+    # Declare arguments
+    publish_rate_arg = DeclareLaunchArgument(
+        'publish_rate',
+        default_value='1.0',
+        description='Publishing rate in Hz'
     )
     
-    with open("actuator_controller/setup.py", "w") as f:
-        f.write(content)
-    print("Updated setup.py with test script")
+    enable_logs_arg = DeclareLaunchArgument(
+        'enable_detailed_logs',
+        default_value='false',
+        description='Enable detailed logging'
+    )
+    
+    # Create nodes
+    system_monitor_node = Node(
+        package='system_monitor',
+        executable='system_monitor_node.py',
+        name='system_monitor',
+        parameters=[{
+            'publish_rate': LaunchConfiguration('publish_rate'),
+            'enable_detailed_logs': LaunchConfiguration('enable_detailed_logs')
+        }],
+        output='screen'
+    )
+    
+    system_info_publisher = Node(
+        package='system_monitor',
+        executable='system_info_publisher.py',
+        name='system_info_publisher',
+        output='screen'
+    )
+    
+    return LaunchDescription([
+        publish_rate_arg,
+        enable_logs_arg,
+        system_monitor_node,
+        system_info_publisher
+    ])
+EOF
 
-def main():
-    print("Creating ROS2 Linear Actuator Controller Package...")
-    print("=" * 50)
-    
-    # Create directory structure
-    create_directory_structure()
-    
-    # Create all files
-    create_package_files()
-    create_actuator_node()
-    create_launch_file()
-    create_test_script()
-    update_setup_py()
-    
-    print("\n" + "=" * 50)
-    print("✅ Package creation complete!")
-    print("\nNext steps:")
-    print("1. Update email and name in package.xml and setup.py files")
-    print("2. Copy packages to your ROS2 workspace:")
-    print("   cp -r actuator_controller/ actuator_interfaces/ ~/ros2_ws/src/")
-    print("\n3. Build the packages:")
-    print("   cd ~/ros2_ws")
-    print("   colcon build --packages-select actuator_interfaces actuator_controller")
-    print("   source install/setup.bash")
-    print("\n4. Launch the actuator node:")
-    print("   ros2 launch actuator_controller actuator_launch.py")
-    print("\n5. Test commands:")
-    print("   ros2 run actuator_controller test_actuator extend 100")
-    print("   ros2 run actuator_controller test_actuator retract 50")
-    print("   ros2 run actuator_controller test_actuator stop")
-    print("   ros2 run actuator_controller test_actuator extend 75 3.0  # extend at 75% for 3 seconds")
-    print("\n6. Service call examples:")
-    print('   ros2 service call /set_actuator actuator_interfaces/srv/SetActuator "{action: \'extend\', speed: 100, duration: 0.0}"')
-    print('   ros2 service call /set_actuator actuator_interfaces/srv/SetActuator "{action: \'stop\', speed: 0, duration: 0.0}"')
+# Create README
+cat > $PACKAGE_NAME/README.md << 'EOF'
+# ROS2 System Monitor Package
 
-if __name__ == "__main__":
-    main()
+A ROS2 Humble package for monitoring system metrics on Raspberry Pi and other Linux systems.
+
+## Features
+
+- CPU usage and temperature monitoring
+- Memory and swap usage
+- Network statistics
+- Disk usage for all partitions
+- Top processes by CPU and memory
+- Custom ROS2 messages for detailed system information
+- JSON output for easy integration
+
+## Topics Published
+
+- `/system/temperature` (sensor_msgs/Temperature) - CPU temperature
+- `/system/cpu_usage` (std_msgs/Float32) - CPU usage percentage
+- `/system/memory_usage` (std_msgs/Float32) - Memory usage percentage
+- `/system/load` (system_monitor/SystemLoad) - Detailed system load
+- `/system/network` (system_monitor/NetworkStats) - Network statistics
+- `/system/status` (system_monitor/SystemStatus) - Complete system status
+- `/system/status_json` (std_msgs/String) - JSON formatted status
+- `/system_info` (std_msgs/String) - Simple system info in JSON
+
+## Installation
+
+1. Clone into your ROS2 workspace:
+```bash
+cd ~/ros2_ws/src
+git clone <this_repository>
+```
+
+2. Install dependencies:
+```bash
+sudo apt update
+sudo apt install python3-psutil
+```
+
+3. Build the package:
+```bash
+cd ~/ros2_ws
+colcon build --packages-select system_monitor
+source install/setup.bash
+```
+
+## Usage
+
+### Run the main system monitor node:
+```bash
+ros2 run system_monitor system_monitor_node.py
+```
+
+### Run with custom parameters:
+```bash
+ros2 run system_monitor system_monitor_node.py --ros-args -p publish_rate:=2.0 -p enable_detailed_logs:=true
+```
+
+### Launch both nodes:
+```bash
+ros2 launch system_monitor system_monitor_launch.py
+```
+
+### Launch with arguments:
+```bash
+ros2 launch system_monitor system_monitor_launch.py publish_rate:=5.0 enable_detailed_logs:=true
+```
+
+## View Topics
+
+```bash
+# List all topics
+ros2 topic list
+
+# Echo CPU usage
+ros2 topic echo /system/cpu_usage
+
+# Echo complete system status as JSON
+ros2 topic echo /system/status_json
+
+# Monitor temperature
+ros2 topic echo /system/temperature
+```
+
+## Parameters
+
+- `publish_rate` (float, default: 1.0) - Publishing rate in Hz
+- `enable_detailed_logs` (bool, default: false) - Enable detailed console logging
+
+## Custom Messages
+
+The package defines several custom messages:
+- `SystemLoad.msg` - CPU, memory, and load information
+- `ProcessInfo.msg` - Process details
+- `NetworkStats.msg` - Network statistics
+- `DiskUsage.msg` - Disk partition usage
+- `SystemStatus.msg` - Complete system status
+
+## Requirements
+
+- ROS2 Humble
+- Python 3.8+
+- psutil Python package
+EOF
+
+# Make scripts executable
+chmod +x $PACKAGE_NAME/$PACKAGE_NAME/*.py
+
+# Create a build script
+cd ../..
+cat > build_and_run.sh << 'EOF'
+#!/bin/bash
+
+# Build and run the ROS2 System Monitor package
+
+echo "🔨 Building ROS2 System Monitor Package..."
+
+# Source ROS2 if not already sourced
+if [ -z "$ROS_DISTRO" ]; then
+    echo "Sourcing ROS2 Humble..."
+    source /opt/ros/humble/setup.bash 2>/dev/null || echo "⚠️  ROS2 Humble not found in /opt/ros/humble"
+fi
+
+# Build the package
+colcon build --packages-select system_monitor
+
+# Source the workspace
+source install/setup.bash
+
+echo "✅ Build complete!"
+echo ""
+echo "📋 Available commands:"
+echo "  - Run system monitor node:"
+echo "    ros2 run system_monitor system_monitor_node.py"
+echo ""
+echo "  - Launch all nodes:"
+echo "    ros2 launch system_monitor system_monitor_launch.py"
+echo ""
+echo "  - View topics:"
+echo "    ros2 topic list"
+echo "    ros2 topic echo /system/cpu_usage"
+echo "    ros2 topic echo /system/status_json"
+EOF
+
+chmod +x build_and_run.sh
+
+echo "✅ ROS2 System Monitor package created successfully!"
+echo ""
+echo "📁 Structure created:"
+echo "  $WORKSPACE_NAME/"
+echo "  ├── src/"
+echo "  │   └── $PACKAGE_NAME/"
+echo "  │       ├── $PACKAGE_NAME/"
+echo "  │       │   ├── __init__.py"
+echo "  │       │   ├── system_monitor_node.py"
+echo "  │       │   └── system_info_publisher.py"
+echo "  │       ├── launch/"
+echo "  │       │   └── system_monitor_launch.py"
+echo "  │       ├── msg/"
+echo "  │       │   ├── SystemLoad.msg"
+echo "  │       │   ├── ProcessInfo.msg"
+echo "  │       │   ├── NetworkStats.msg"
+echo "  │       │   ├── DiskUsage.msg"
+echo "  │       │   └── SystemStatus.msg"
+echo "  │       ├── CMakeLists.txt"
+echo "  │       ├── package.xml"
+echo "  │       ├── setup.py"
+echo "  │       └── README.md"
+echo "  └── build_and_run.sh"
+echo ""
+echo "🚀 Next steps:"
+echo "  1. cd $WORKSPACE_NAME"
+echo "  2. ./build_and_run.sh"
+EOF

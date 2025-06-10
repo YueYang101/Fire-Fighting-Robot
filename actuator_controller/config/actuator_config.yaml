@@ -1,0 +1,11 @@
+linear_actuator_controller:
+  ros__parameters:
+    # PCA9685 channel configuration
+    in1_channel: 4      # Channel for IN1 (extend)
+    in2_channel: 5      # Channel for IN2 (retract)
+    
+    # PWM settings
+    pwm_frequency: 1000  # Hz
+    
+    # Safety settings
+    max_extend_time: 8.0  # Maximum extension time in seconds

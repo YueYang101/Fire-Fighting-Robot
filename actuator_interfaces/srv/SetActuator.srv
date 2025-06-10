@@ -1,0 +1,7 @@
+# Service for controlling linear actuator
+string action      # "extend", "retract", or "stop"
+int32 speed        # Speed percentage (0-100)
+float32 duration   # Optional duration in seconds (0 = continuous)
+---
+bool success       # True if command was accepted
+string message     # Response message
