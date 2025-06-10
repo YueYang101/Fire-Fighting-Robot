@@ -26,6 +26,7 @@ from backend.sensors.thermal_camera import get_thermal_camera_sensor
 from backend.sensors.system_monitor import get_system_monitor
 from backend.motors.servo_control import ServoController
 from backend.motors.actuator_control import get_actuator_controller
+from backend.automation import get_auto_mapper
 
 # Create Flask app
 app = Flask(__name__, 
@@ -53,6 +54,9 @@ thermal_camera_sensor = get_thermal_camera_sensor()
 system_monitor = get_system_monitor()
 servo_controller = ServoController()
 actuator_controller = get_actuator_controller()
+
+# Initialize automation components
+auto_mapper = get_auto_mapper(motor_controller, lidar_sensor)
 
 # Set ROS bridge for servo controller
 servo_controller.set_ros_bridge(ros_bridge)
@@ -159,6 +163,68 @@ def stop_all_motors():
         return jsonify(result)
     else:
         return jsonify(result), 500
+
+# =============================================================================
+# AUTOMATION API ROUTES
+# =============================================================================
+
+@app.route('/api/automation/start', methods=['POST'])
+def start_automation():
+    """Start autonomous mapping"""
+    try:
+        if auto_mapper.start_mapping():
+            return jsonify({
+                "success": True,
+                "message": "Autonomous mapping started"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Mapping already active"
+            }), 400
+    except Exception as e:
+        logger.error(f"Error starting automation: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/automation/stop', methods=['POST'])
+def stop_automation():
+    """Stop autonomous mapping"""
+    try:
+        if auto_mapper.stop_mapping():
+            return jsonify({
+                "success": True,
+                "message": "Autonomous mapping stopped"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Mapping not active"
+            }), 400
+    except Exception as e:
+        logger.error(f"Error stopping automation: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/automation/status', methods=['GET'])
+def get_automation_status():
+    """Get current automation status"""
+    try:
+        status = auto_mapper.get_status()
+        return jsonify({
+            "success": True,
+            "status": status
+        })
+    except Exception as e:
+        logger.error(f"Error getting automation status: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 # =============================================================================
 # SERVO/AIMING SYSTEM API ROUTES
@@ -337,6 +403,11 @@ def subscribe_lidar():
         """Emit lidar data through WebSocket"""
         if lidar_streaming:
             socketio.emit('lidar_data', scan_data)
+            
+            # Also emit to automation system if active
+            automation_status = auto_mapper.get_status()
+            if automation_status.get("active"):
+                socketio.emit('automation_status', automation_status)
     
     success = lidar_sensor.subscribe(callback=lidar_callback, processed_data=True)
     
@@ -490,7 +561,8 @@ def get_system_status():
             "thermal": thermal_camera_sensor.subscription_active,
             "servo": servo_controller.connected,
             "system_monitor": system_monitor.subscription_active,
-            "actuator": actuator_controller.connected
+            "actuator": actuator_controller.connected,
+            "automation": auto_mapper.mapping_active
         }
     }), 200 if ros_connected else 503
 
@@ -532,7 +604,7 @@ def update_config():
         config_manager.update_config(config_updates)
         
         # Update ROS bridge connection
-        global ros_bridge, motor_controller, lidar_sensor, thermal_camera_sensor, servo_controller, actuator_controller
+        global ros_bridge, motor_controller, lidar_sensor, thermal_camera_sensor, servo_controller, actuator_controller, auto_mapper
         ros_bridge = get_ros_bridge(CONFIG["PI_IP"], CONFIG["ROS_BRIDGE_PORT"])
         motor_controller = get_motor_controller()
         lidar_sensor = get_lidar_sensor()
@@ -541,6 +613,9 @@ def update_config():
         # Update servo and actuator controllers with new ROS bridge
         servo_controller.set_ros_bridge(ros_bridge)
         actuator_controller.set_ros_bridge(ros_bridge)
+        
+        # Recreate auto mapper with new components
+        auto_mapper = get_auto_mapper(motor_controller, lidar_sensor)
         
         logger.info(f"Configuration updated and saved: IP={new_ip}, Port={new_port}")
         
@@ -615,6 +690,13 @@ def handle_servo_state_request():
         'type': 'servo_state',
         **state
     })
+
+# Automation WebSocket events
+@socketio.on('request_automation_status')
+def handle_automation_status_request():
+    """Send current automation status via WebSocket"""
+    status = auto_mapper.get_status()
+    emit('automation_status', status)
 
 # =============================================================================
 # ERROR HANDLERS

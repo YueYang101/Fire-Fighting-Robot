@@ -167,6 +167,20 @@
             background: linear-gradient(135deg, #ff4444, #cc0000);
         }
 
+        .control-button.mapping {
+            background: linear-gradient(135deg, #ff00ff, #aa00ff);
+        }
+
+        .control-button.mapping.active {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 5px 20px rgba(255, 0, 255, 0.4); }
+            50% { box-shadow: 0 5px 30px rgba(255, 0, 255, 0.6); }
+            100% { box-shadow: 0 5px 20px rgba(255, 0, 255, 0.4); }
+        }
+
         .info-panel {
             background: #1a1a1a;
             border-radius: 15px;
@@ -235,6 +249,48 @@
         .move-btn:nth-child(5) { grid-column: 2; }
         .move-btn:nth-child(6) { grid-column: 3; }
 
+        .mapping-panel {
+            background: #1a1a1a;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #333;
+            display: none;
+        }
+
+        .mapping-panel.active {
+            display: block;
+            border-color: #ff00ff;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.2);
+        }
+
+        .mapping-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .mapping-stat {
+            background: #252525;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #444;
+        }
+
+        .mapping-stat-label {
+            color: #ff00ff;
+            font-size: 0.8em;
+            margin-bottom: 5px;
+        }
+
+        .mapping-stat-value {
+            color: #fff;
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+
         @media (max-width: 1200px) {
             .main-container {
                 grid-template-columns: 1fr;
@@ -262,6 +318,11 @@
         <div class="status-item">
             <span>Points:</span>
             <span id="pointCount">0</span>
+        </div>
+        <div class="status-item" id="mappingIndicator" style="display: none;">
+            <span>Auto Mapping:</span>
+            <div class="status-indicator connected"></div>
+            <span>ACTIVE</span>
         </div>
     </div>
 
@@ -296,6 +357,7 @@
         <button class="control-button" onclick="saveMap()">Save Map</button>
         <button class="control-button" id="followRobotBtn" onclick="toggleFollowRobot()">Follow Robot</button>
         <button class="control-button" onclick="resetView()">Reset View</button>
+        <button class="control-button mapping" id="mappingBtn" onclick="toggleMapping()">Start Mapping</button>
     </div>
 
     <div class="info-panel">
@@ -320,8 +382,42 @@
         </div>
     </div>
 
+    <div class="mapping-panel" id="mappingPanel">
+        <h3 style="color: #ff00ff; margin-bottom: 15px;">Autonomous Mapping Status</h3>
+        <div class="mapping-status">
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">State</div>
+                <div class="mapping-stat-value" id="mappingState">-</div>
+            </div>
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">Robot X</div>
+                <div class="mapping-stat-value" id="robotPosX">0 mm</div>
+            </div>
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">Robot Y</div>
+                <div class="mapping-stat-value" id="robotPosY">0 mm</div>
+            </div>
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">Angle</div>
+                <div class="mapping-stat-value" id="robotAngle">0°</div>
+            </div>
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">Cells Visited</div>
+                <div class="mapping-stat-value" id="cellsVisited">0</div>
+            </div>
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">Walls Found</div>
+                <div class="mapping-stat-value" id="wallsFound">0</div>
+            </div>
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">Duration</div>
+                <div class="mapping-stat-value" id="mappingDuration">0s</div>
+            </div>
+        </div>
+    </div>
+
     <div class="controls">
-        <h3 style="color: #00ff88; margin-bottom: 15px; text-align: center;">Robot Movement (Simulation)</h3>
+        <h3 style="color: #00ff88; margin-bottom: 15px; text-align: center;">Robot Movement (Manual Control)</h3>
         <div class="movement-controls">
             <button class="move-btn" onclick="moveRobot('forward')">↑</button>
             <button class="move-btn" onclick="moveRobot('left')">←</button>
@@ -345,6 +441,8 @@
         let scanning = false;
         let followRobot = true;
         let latestScanData = null;
+        let mappingActive = false;
+        let automationStatus = null;
         
         // Map parameters
         const MAP_SIZE = 100;  // 10m x 10m with 10cm resolution
@@ -386,6 +484,11 @@
                 lastDataTime = now;
                 document.getElementById('dataRate').textContent = `${dataRate} Hz`;
             }
+        });
+        
+        socket.on('automation_status', (status) => {
+            automationStatus = status;
+            updateMappingStatus(status);
         });
         
         // Resize canvases
@@ -433,6 +536,85 @@
                 }
             } catch (error) {
                 console.error('Failed to stop lidar:', error);
+            }
+        }
+        
+        // Mapping control
+        async function toggleMapping() {
+            const mappingBtn = document.getElementById('mappingBtn');
+            const mappingPanel = document.getElementById('mappingPanel');
+            const mappingIndicator = document.getElementById('mappingIndicator');
+            
+            if (!mappingActive) {
+                // Start mapping
+                try {
+                    // First ensure lidar is started
+                    if (!scanning) {
+                        await startLidar();
+                    }
+                    
+                    const response = await fetch('/api/automation/start', { method: 'POST' });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        mappingActive = true;
+                        mappingBtn.textContent = 'Stop Mapping';
+                        mappingBtn.classList.add('active');
+                        mappingPanel.classList.add('active');
+                        mappingIndicator.style.display = 'flex';
+                        
+                        // Request initial status
+                        socket.emit('request_automation_status');
+                    } else {
+                        alert('Failed to start mapping: ' + data.error);
+                    }
+                } catch (error) {
+                    console.error('Failed to start mapping:', error);
+                    alert('Failed to start mapping');
+                }
+            } else {
+                // Stop mapping
+                try {
+                    const response = await fetch('/api/automation/stop', { method: 'POST' });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        mappingActive = false;
+                        mappingBtn.textContent = 'Start Mapping';
+                        mappingBtn.classList.remove('active');
+                        mappingPanel.classList.remove('active');
+                        mappingIndicator.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Failed to stop mapping:', error);
+                }
+            }
+        }
+        
+        function updateMappingStatus(status) {
+            if (!status || !status.status) return;
+            
+            const s = status.status;
+            document.getElementById('mappingState').textContent = s.state || '-';
+            document.getElementById('robotPosX').textContent = `${s.robot_position?.x || 0} mm`;
+            document.getElementById('robotPosY').textContent = `${s.robot_position?.y || 0} mm`;
+            document.getElementById('robotAngle').textContent = `${s.robot_position?.theta || 0}°`;
+            document.getElementById('cellsVisited').textContent = s.visited_cells || 0;
+            document.getElementById('wallsFound').textContent = s.walls_detected || 0;
+            document.getElementById('mappingDuration').textContent = `${s.duration || 0}s`;
+            
+            // Update robot position on map if mapping
+            if (s.active && s.robot_position) {
+                // Convert mm to grid coordinates
+                robotX = MAP_SIZE / 2 + s.robot_position.x / (MAP_RESOLUTION * 1000);
+                robotY = MAP_SIZE / 2 - s.robot_position.y / (MAP_RESOLUTION * 1000);
+                robotTheta = (s.robot_position.theta * Math.PI) / 180;
+                
+                // Add to path
+                robotPath.push({ x: robotX, y: robotY });
+                if (robotPath.length > 5000) {
+                    robotPath.shift();
+                }
             }
         }
         
@@ -519,7 +701,7 @@
             });
             
             // Draw robot center
-            polarCtx.fillStyle = '#00aaff';
+            polarCtx.fillStyle = mappingActive ? '#ff00ff' : '#00aaff';
             polarCtx.beginPath();
             polarCtx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
             polarCtx.fill();
@@ -628,7 +810,7 @@
             
             // Draw robot path
             if (robotPath.length > 1) {
-                mapCtx.strokeStyle = '#00ff8866';
+                mapCtx.strokeStyle = mappingActive ? '#ff00ff66' : '#00ff8866';
                 mapCtx.lineWidth = 2;
                 mapCtx.beginPath();
                 mapCtx.moveTo(robotPath[0].x * MAP_RESOLUTION * scale, robotPath[0].y * MAP_RESOLUTION * scale);
@@ -643,13 +825,13 @@
             const robotScreenY = robotY * MAP_RESOLUTION * scale;
             
             // Robot body
-            mapCtx.fillStyle = '#00aaff';
+            mapCtx.fillStyle = mappingActive ? '#ff00ff' : '#00aaff';
             mapCtx.beginPath();
             mapCtx.arc(robotScreenX, robotScreenY, 8, 0, 2 * Math.PI);
             mapCtx.fill();
             
             // Robot direction
-            mapCtx.strokeStyle = '#00aaff';
+            mapCtx.strokeStyle = mappingActive ? '#ff00ff' : '#00aaff';
             mapCtx.lineWidth = 3;
             mapCtx.beginPath();
             mapCtx.moveTo(robotScreenX, robotScreenY);
@@ -710,65 +892,106 @@
             document.getElementById('followRobotBtn').classList.add('active');
         }
         
-        // Robot movement (simulation)
-        function moveRobot(direction) {
-            const moveSpeed = 0.2;  // meters
-            const turnSpeed = 0.1;  // radians
-            
-            switch (direction) {
-                case 'forward':
-                    robotX += moveSpeed * Math.cos(robotTheta) / MAP_RESOLUTION;
-                    robotY += moveSpeed * Math.sin(robotTheta) / MAP_RESOLUTION;
-                    break;
-                case 'backward':
-                    robotX -= moveSpeed * Math.cos(robotTheta) / MAP_RESOLUTION;
-                    robotY -= moveSpeed * Math.sin(robotTheta) / MAP_RESOLUTION;
-                    break;
-                case 'left':
-                    robotTheta -= turnSpeed;
-                    break;
-                case 'right':
-                    robotTheta += turnSpeed;
-                    break;
+        // Robot movement (simulation only when mapping is not active)
+        async function moveRobot(direction) {
+            if (mappingActive) {
+                alert('Manual control disabled during autonomous mapping');
+                return;
             }
             
-            // Keep robot in bounds
-            robotX = Math.max(0, Math.min(MAP_SIZE - 1, robotX));
-            robotY = Math.max(0, Math.min(MAP_SIZE - 1, robotY));
-            
-            // Add to path
-            robotPath.push({ x: robotX, y: robotY });
-            if (robotPath.length > 1000) {
-                robotPath.shift();
-            }
-            
-            // Redraw if we have scan data
-            if (latestScanData) {
-                updateVisualization(latestScanData);
+            // Send motor commands for manual control
+            try {
+                let leftMotor = { direction: 'brake', speed: 0 };
+                let rightMotor = { direction: 'brake', speed: 0 };
+                
+                switch (direction) {
+                    case 'forward':
+                        leftMotor = { direction: 'forward', speed: 85 };
+                        rightMotor = { direction: 'forward', speed: 85 };
+                        break;
+                    case 'backward':
+                        leftMotor = { direction: 'backward', speed: 85 };
+                        rightMotor = { direction: 'backward', speed: 85 };
+                        break;
+                    case 'left':
+                        leftMotor = { direction: 'backward', speed: 75 };
+                        rightMotor = { direction: 'forward', speed: 75 };
+                        break;
+                    case 'right':
+                        leftMotor = { direction: 'forward', speed: 75 };
+                        rightMotor = { direction: 'backward', speed: 75 };
+                        break;
+                    case 'stop':
+                        leftMotor = { direction: 'brake', speed: 0 };
+                        rightMotor = { direction: 'brake', speed: 0 };
+                        break;
+                }
+                
+                // Send commands to motors (remember they're reversed)
+                await fetch('/api/motor/0', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(rightMotor)
+                });
+                
+                await fetch('/api/motor/1', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(leftMotor)
+                });
+                
+            } catch (error) {
+                console.error('Failed to control motors:', error);
             }
         }
         
         // Keyboard controls
         document.addEventListener('keydown', (e) => {
-            switch (e.key) {
-                case 'ArrowUp':
-                case 'w':
-                    moveRobot('forward');
-                    break;
-                case 'ArrowDown':
-                case 's':
-                    moveRobot('backward');
-                    break;
-                case 'ArrowLeft':
-                case 'a':
-                    moveRobot('left');
-                    break;
-                case 'ArrowRight':
-                case 'd':
-                    moveRobot('right');
-                    break;
+            if (!mappingActive) {
+                switch (e.key) {
+                    case 'ArrowUp':
+                    case 'w':
+                        moveRobot('forward');
+                        break;
+                    case 'ArrowDown':
+                    case 's':
+                        moveRobot('backward');
+                        break;
+                    case 'ArrowLeft':
+                    case 'a':
+                        moveRobot('left');
+                        break;
+                    case 'ArrowRight':
+                    case 'd':
+                        moveRobot('right');
+                        break;
+                    case ' ':
+                        moveRobot('stop');
+                        break;
+                }
             }
         });
+        
+        document.addEventListener('keyup', (e) => {
+            if (!mappingActive && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(e.key)) {
+                moveRobot('stop');
+            }
+        });
+        
+        // Check automation status periodically
+        setInterval(async () => {
+            if (mappingActive) {
+                try {
+                    const response = await fetch('/api/automation/status');
+                    const data = await response.json();
+                    if (data.success) {
+                        updateMappingStatus(data);
+                    }
+                } catch (error) {
+                    console.error('Failed to get automation status:', error);
+                }
+            }
+        }, 1000);
         
         // Initialize
         toggleFollowRobot();  // Start with follow robot enabled

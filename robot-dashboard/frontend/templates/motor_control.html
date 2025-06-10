@@ -88,7 +88,7 @@
 
         .controls-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 30px;
             margin-bottom: 40px;
         }
@@ -328,13 +328,23 @@
             color: #00ff88;
         }
 
-        /* Responsive design */
-        @media (max-width: 1600px) {
-            .controls-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+        .mapping-info {
+            background: #252525;
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #333;
         }
 
+        .mapping-info.active {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        /* Responsive design */
         @media (max-width: 900px) {
             .controls-grid {
                 grid-template-columns: 1fr;
@@ -357,18 +367,6 @@
                 gap: 8px;
             }
         }
-
-        /* For ultra-wide displays */
-        @media (min-width: 2000px) {
-            .main-container {
-                max-width: 1900px;
-            }
-            
-            .motor-card {
-                padding: 35px;
-                min-height: 400px;
-            }
-        }
     </style>
 </head>
 <body>
@@ -385,10 +383,10 @@
 
     <div class="main-container">
         <div class="controls-grid">
-            <!-- Left Motors -->
+            <!-- Right Motors (Motor 0 in code = Physical Right) -->
             <div class="motor-card" data-motor="0">
                 <div class="motor-header">
-                    <h2 class="motor-title">Left Motors</h2>
+                    <h2 class="motor-title">Right Motors</h2>
                     <span class="motor-status">IDLE</span>
                 </div>
                 <div class="direction-controls">
@@ -412,10 +410,10 @@
                 </div>
             </div>
 
-            <!-- Right Motors -->
+            <!-- Left Motors (Motor 1 in code = Physical Left) -->
             <div class="motor-card" data-motor="1">
                 <div class="motor-header">
-                    <h2 class="motor-title">Right Motors</h2>
+                    <h2 class="motor-title">Left Motors</h2>
                     <span class="motor-status">IDLE</span>
                 </div>
                 <div class="direction-controls">
@@ -451,8 +449,8 @@
     <script>
         // Motor control state
         const motorStates = {
-            0: { direction: 'brake', speed: 0 },  // Left motors
-            1: { direction: 'brake', speed: 0 }   // Right motors
+            0: { direction: 'brake', speed: 0 },  // Right motors
+            1: { direction: 'brake', speed: 0 }   // Left motors
         };
 
         // Command throttling
@@ -497,7 +495,8 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    addLog(`Motor ${command.motorId}: ${command.direction} at ${command.speed}%`, 'success');
+                    const motorSide = command.motorId === 0 ? 'Right' : 'Left';
+                    addLog(`${motorSide} motors: ${command.direction} at ${command.speed}%`, 'success');
                 } else {
                     addLog(`Motor ${command.motorId} error: ${data.error}`, 'error');
                 }
@@ -633,8 +632,6 @@
             let sliderTimeout;
             
             slider.addEventListener('input', (e) => {
-                // IMPORTANT: Invert the slider value
-                // Slider shows 0-100 left to right, but we need to send inverted values
                 const sliderValue = parseInt(e.target.value);
                 motorStates[motorId].speed = sliderValue;
                 
@@ -701,6 +698,7 @@
         }
         
         addLog('Motor control panel initialized', 'success');
+        addLog('Note: Motor 0 = Right side, Motor 1 = Left side', 'info');
     </script>
 </body>
 </html>
