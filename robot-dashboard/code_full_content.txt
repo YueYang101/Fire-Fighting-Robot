@@ -1,7 +1,7 @@
 ================================================================================
 FULL CODE CONTENT DUMP
 Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot/robot-dashboard
-Time: 2025-06-11 02:46:03
+Time: 2025-06-11 02:46:17
 ================================================================================
 
 DIRECTORY STRUCTURE:
@@ -22,7 +22,7 @@ DIRECTORY STRUCTURE:
 │   ├── automation.py (30.3 KB)
 │   ├── automation_v2.py (34.6 KB)
 │   ├── config_manager.py (3.3 KB)
-│   ├── host_backend.py (31.8 KB)
+│   ├── host_backend.py (27.8 KB)
 │   └── ros_bridge.py (16.9 KB)
 ├── frontend/
 │   ├── static/
@@ -30,11 +30,11 @@ DIRECTORY STRUCTURE:
 │   └── templates/
 │       ├── aiming_system.html (41.6 KB)
 │       ├── dashboard_home.html (27.7 KB)
-│       ├── lidar_visualization.html (58.9 KB)
+│       ├── lidar_visualization.html (47.8 KB)
 │       ├── motor_control.html (23.4 KB)
 │       └── thermal_camera.html (20.0 KB)
 ├── ui/
-├── code_full_content.txt (371.7 KB)
+├── code_full_content.txt (372.1 KB)
 ├── code_scan_summary.txt (1.5 KB)
 ├── code_scanner.py (12.9 KB)
 ├── quick_test_automation.py (23.1 KB)
@@ -45,14 +45,14 @@ DIRECTORY STRUCTURE:
 STATISTICS:
 ----------------------------------------
 Total code files: 25
-Total size: 733.5 KB
-Total lines: 20,742
+Total size: 718.9 KB
+Total lines: 20,400
 
 FILES BY CATEGORY:
 ----------------------------------------
-Documentation: 3 files, 373.3 KB, 10,528 lines
-Python: 17 files, 188.7 KB, 5,285 lines
-Web: 5 files, 171.6 KB, 4,929 lines
+Documentation: 3 files, 373.7 KB, 10,539 lines
+Python: 17 files, 184.7 KB, 5,165 lines
+Web: 5 files, 160.4 KB, 4,696 lines
 
 ================================================================================
 FILE CONTENTS:
@@ -60,7 +60,7 @@ FILE CONTENTS:
 
 ================================================================================
 FILE: code_full_content.txt
-Category: Documentation | Size: 371.7 KB | Lines: 10485
+Category: Documentation | Size: 372.1 KB | Lines: 10495
 ================================================================================
 
 ================================================================================
@@ -68,13 +68,13 @@ Category: Documentation | Size: 371.7 KB | Lines: 10485
 
 ================================================================================
 FILE: code_scan_summary.txt
-Category: Documentation | Size: 1.5 KB | Lines: 36
+Category: Documentation | Size: 1.5 KB | Lines: 37
 ================================================================================
-Code Scan Summary - 2025-06-11 02:46:03
+Code Scan Summary - 2025-06-11 02:46:17
 Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot/robot-dashboard
 Total files: 25
-Total size: 733.5 KB
-Total lines: 20,742
+Total size: 718.9 KB
+Total lines: 20,400
 
 Files by category:
   Documentation: 3 files
@@ -82,14 +82,14 @@ Files by category:
   Web: 5 files
 
 All code files:
-  code_full_content.txt (Documentation, 371.7 KB)
+  code_full_content.txt (Documentation, 372.1 KB)
   code_scan_summary.txt (Documentation, 1.5 KB)
   requirements.txt (Documentation, 130.0 B)
   backend/__init__.py (Python, 285.0 B)
   backend/automation.py (Python, 30.3 KB)
   backend/automation_v2.py (Python, 34.6 KB)
   backend/config_manager.py (Python, 3.3 KB)
-  backend/host_backend.py (Python, 31.8 KB)
+  backend/host_backend.py (Python, 27.8 KB)
   backend/motors/__init__.py (Python, 0.0 B)
   backend/motors/actuator_control.py (Python, 7.5 KB)
   backend/motors/motor_controller.py (Python, 6.3 KB)
@@ -104,7 +104,7 @@ All code files:
   run.py (Python, 341.0 B)
   frontend/templates/aiming_system.html (Web, 41.6 KB)
   frontend/templates/dashboard_home.html (Web, 27.7 KB)
-  frontend/templates/lidar_visualization.html (Web, 58.9 KB)
+  frontend/templates/lidar_visualization.html (Web, 47.8 KB)
   frontend/templates/motor_control.html (Web, 23.4 KB)
   frontend/templates/thermal_camera.html (Web, 20.0 KB)
 
@@ -1884,7 +1884,7 @@ def get_config_manager(config_file: str = None) -> ConfigManager:
 
 ================================================================================
 FILE: backend/host_backend.py
-Category: Python | Size: 31.8 KB | Lines: 997
+Category: Python | Size: 27.8 KB | Lines: 877
 ================================================================================
 #!/usr/bin/env python3
 """
@@ -1915,7 +1915,6 @@ from backend.sensors.system_monitor import get_system_monitor
 from backend.motors.servo_control import ServoController
 from backend.motors.actuator_control import get_actuator_controller
 from backend.automation import get_auto_mapper
-from backend.automation_v2 import get_auto_mapper_v2
 
 # Create Flask app
 app = Flask(__name__, 
@@ -1946,7 +1945,6 @@ actuator_controller = get_actuator_controller()
 
 # Initialize automation components
 auto_mapper = get_auto_mapper(motor_controller, lidar_sensor)
-auto_mapper_v2 = get_auto_mapper_v2(motor_controller, lidar_sensor)
 
 # Set ROS bridge for servo controller
 servo_controller.set_ros_bridge(ros_bridge)
@@ -2220,122 +2218,6 @@ def toggle_background_removal():
         })
     except Exception as e:
         logger.error(f"Error toggling background removal: {e}")
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-# =============================================================================
-# AUTOMATION V2 API ROUTES
-# =============================================================================
-
-@app.route('/api/automation/v2/start', methods=['POST'])
-def start_automation_v2():
-    """Start autonomous mapping v2 with optional goal"""
-    try:
-        data = request.get_json()
-        goal_x = data.get('goal_x') if data else None
-        goal_y = data.get('goal_y') if data else None
-        
-        if auto_mapper_v2.start_mapping(goal_x, goal_y):
-            return jsonify({
-                "success": True,
-                "message": "Autonomous mapping v2 started",
-                "goal": {"x": goal_x, "y": goal_y} if goal_x and goal_y else None
-            })
-        else:
-            return jsonify({
-                "success": False,
-                "error": "Mapping already active"
-            }), 400
-    except Exception as e:
-        logger.error(f"Error starting automation v2: {e}")
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-@app.route('/api/automation/v2/stop', methods=['POST'])
-def stop_automation_v2():
-    """Stop autonomous mapping v2"""
-    try:
-        if auto_mapper_v2.stop_mapping():
-            return jsonify({
-                "success": True,
-                "message": "Autonomous mapping v2 stopped"
-            })
-        else:
-            return jsonify({
-                "success": False,
-                "error": "Mapping not active"
-            }), 400
-    except Exception as e:
-        logger.error(f"Error stopping automation v2: {e}")
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-@app.route('/api/automation/v2/status', methods=['GET'])
-def get_automation_v2_status():
-    """Get current automation v2 status"""
-    try:
-        status = auto_mapper_v2.get_status()
-        return jsonify({
-            "success": True,
-            "status": status
-        })
-    except Exception as e:
-        logger.error(f"Error getting automation v2 status: {e}")
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-@app.route('/api/automation/v2/set_goal', methods=['POST'])
-def set_automation_v2_goal():
-    """Set navigation goal for automation v2"""
-    try:
-        data = request.get_json()
-        
-        if not data or 'x' not in data or 'y' not in data:
-            return jsonify({"error": "Goal coordinates (x, y) required"}), 400
-        
-        x = float(data['x'])
-        y = float(data['y'])
-        
-        if auto_mapper_v2.set_goal(x, y):
-            return jsonify({
-                "success": True,
-                "message": f"Goal set to ({x}, {y})",
-                "goal": {"x": x, "y": y}
-            })
-        else:
-            return jsonify({
-                "success": False,
-                "error": "Failed to set goal"
-            }), 400
-    except Exception as e:
-        logger.error(f"Error setting goal: {e}")
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-@app.route('/api/automation/v2/grid', methods=['GET'])
-def get_occupancy_grid():
-    """Get occupancy grid data"""
-    try:
-        grid = auto_mapper_v2.get_occupancy_grid()
-        return jsonify({
-            "success": True,
-            "grid": grid.tolist(),  # Convert numpy array to list
-            "width": grid.shape[1],
-            "height": grid.shape[0],
-            "resolution": auto_mapper_v2.occupancy_grid.resolution
-        })
-    except Exception as e:
-        logger.error(f"Error getting occupancy grid: {e}")
         return jsonify({
             "success": False,
             "error": str(e)
@@ -2677,8 +2559,7 @@ def get_system_status():
             "servo": servo_controller.connected,
             "system_monitor": system_monitor.subscription_active,
             "actuator": actuator_controller.connected,
-            "automation": auto_mapper.mapping_active,
-            "automation_v2": auto_mapper_v2.mapping_active if auto_mapper_v2 else False,
+            "automation": auto_mapper.mapping_active
         }
     }), 200 if ros_connected else 503
 
@@ -2720,7 +2601,7 @@ def update_config():
         config_manager.update_config(config_updates)
         
         # Update ROS bridge connection
-        global ros_bridge, motor_controller, lidar_sensor, thermal_camera_sensor, servo_controller, actuator_controller, auto_mapper, auto_mapper_v2
+        global ros_bridge, motor_controller, lidar_sensor, thermal_camera_sensor, servo_controller, actuator_controller, auto_mapper
         ros_bridge = get_ros_bridge(CONFIG["PI_IP"], CONFIG["ROS_BRIDGE_PORT"])
         motor_controller = get_motor_controller()
         lidar_sensor = get_lidar_sensor()
@@ -2732,7 +2613,6 @@ def update_config():
         
         # Recreate auto mapper with new components
         auto_mapper = get_auto_mapper(motor_controller, lidar_sensor)
-        auto_mapper_v2 = get_auto_mapper_v2(motor_controller, lidar_sensor)
         
         logger.info(f"Configuration updated and saved: IP={new_ip}, Port={new_port}")
         
@@ -7596,7 +7476,7 @@ Category: Web | Size: 27.7 KB | Lines: 827
 
 ================================================================================
 FILE: frontend/templates/lidar_visualization.html
-Category: Web | Size: 58.9 KB | Lines: 1569
+Category: Web | Size: 47.8 KB | Lines: 1336
 ================================================================================
 <!DOCTYPE html>
 <html lang="en">
@@ -8123,7 +8003,6 @@ Category: Web | Size: 58.9 KB | Lines: 1569
         <button class="control-button" id="followRobotBtn" onclick="toggleFollowRobot()">Follow Robot</button>
         <button class="control-button" onclick="resetView()">Reset View</button>
         <button class="control-button mapping" id="mappingBtn" onclick="toggleMapping()">Start Mapping</button>
-        <button class="control-button mapping" id="mappingV2Btn" onclick="toggleMappingV2()">Start Mapping V2</button>
     </div>
 
     <div class="info-panel">
@@ -8232,61 +8111,6 @@ Category: Web | Size: 58.9 KB | Lines: 1569
         </div>
     </div>
 
-    <!-- Add this new panel after the existing mapping panel -->
-    <div class="mapping-panel" id="mappingV2Panel">
-        <h3 style="color: #ff00ff; margin-bottom: 15px;">Autonomous Mapping V2 Status</h3>
-        <div class="mapping-status">
-            <div class="mapping-stat">
-                <div class="mapping-stat-label">State</div>
-                <div class="mapping-stat-value" id="mappingV2State">-</div>
-            </div>
-            <div class="mapping-stat">
-                <div class="mapping-stat-label">Robot X</div>
-                <div class="mapping-stat-value" id="robotV2PosX">0 mm</div>
-            </div>
-            <div class="mapping-stat">
-                <div class="mapping-stat-label">Robot Y</div>
-                <div class="mapping-stat-value" id="robotV2PosY">0 mm</div>
-            </div>
-            <div class="mapping-stat">
-                <div class="mapping-stat-label">Angle</div>
-                <div class="mapping-stat-value" id="robotV2Angle">0°</div>
-            </div>
-            <div class="mapping-stat">
-                <div class="mapping-stat-label">Goal</div>
-                <div class="mapping-stat-value" id="currentGoal">None</div>
-            </div>
-            <div class="mapping-stat">
-                <div class="mapping-stat-label">Wall Following</div>
-                <div class="mapping-stat-value" id="wallFollowing">No</div>
-            </div>
-            <div class="mapping-stat">
-                <div class="mapping-stat-label">Calibrated</div>
-                <div class="mapping-stat-value" id="calibrationStatus">No</div>
-            </div>
-        </div>
-        
-        <!-- Goal Setting Section -->
-        <div style="margin-top: 20px; padding: 15px; background: #252525; border-radius: 10px;">
-            <h4 style="color: #ff00ff; margin-bottom: 10px;">Set Navigation Goal</h4>
-            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center;">
-                <div>
-                    <label style="color: #aaa; font-size: 0.9em;">X (mm):</label>
-                    <input type="number" id="goalX" value="2000" step="100" 
-                           style="width: 100%; padding: 5px; background: #1a1a1a; border: 1px solid #666; 
-                                  border-radius: 5px; color: #fff;">
-                </div>
-                <div>
-                    <label style="color: #aaa; font-size: 0.9em;">Y (mm):</label>
-                    <input type="number" id="goalY" value="0" step="100" 
-                           style="width: 100%; padding: 5px; background: #1a1a1a; border: 1px solid #666; 
-                                  border-radius: 5px; color: #fff;">
-                </div>
-                <button class="control-button" onclick="setGoal()" style="margin-top: 15px;">Set Goal</button>
-            </div>
-        </div>
-    </div>
-
     <div class="controls">
         <h3 style="color: #00ff88; margin-bottom: 15px; text-align: center;">Robot Movement (Manual Control)</h3>
         <div class="movement-controls">
@@ -8313,9 +8137,7 @@ Category: Web | Size: 58.9 KB | Lines: 1569
         let followRobot = true;
         let latestScanData = null;
         let mappingActive = false;
-        let mappingV2Active = false;
         let automationStatus = null;
-        let automationV2Status = null;
         
         // Map parameters
         const MAP_SIZE = 100;  // 10m x 10m with 10cm resolution
@@ -8464,133 +8286,6 @@ Category: Web | Size: 58.9 KB | Lines: 1569
             }
         }
         
-        // Add V2 mapping functions
-        async function toggleMappingV2() {
-            const mappingBtn = document.getElementById('mappingV2Btn');
-            const mappingPanel = document.getElementById('mappingV2Panel');
-            const mappingIndicator = document.getElementById('mappingIndicator');
-            
-            if (!mappingV2Active) {
-                // Start mapping v2
-                try {
-                    // First ensure lidar is started
-                    if (!scanning) {
-                        await startLidar();
-                    }
-                    
-                    // Get goal values
-                    const goalX = parseFloat(document.getElementById('goalX').value) || null;
-                    const goalY = parseFloat(document.getElementById('goalY').value) || null;
-                    
-                    const response = await fetch('/api/automation/v2/start', { 
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ goal_x: goalX, goal_y: goalY })
-                    });
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        mappingV2Active = true;
-                        mappingBtn.textContent = 'Stop Mapping V2';
-                        mappingBtn.classList.add('active');
-                        mappingPanel.classList.add('active');
-                        mappingIndicator.style.display = 'flex';
-                        
-                        // Start status updates
-                        setInterval(updateMappingV2Status, 1000);
-                    } else {
-                        alert('Failed to start mapping v2: ' + data.error);
-                    }
-                } catch (error) {
-                    console.error('Failed to start mapping v2:', error);
-                    alert('Failed to start mapping v2');
-                }
-            } else {
-                // Stop mapping v2
-                try {
-                    const response = await fetch('/api/automation/v2/stop', { method: 'POST' });
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        mappingV2Active = false;
-                        mappingBtn.textContent = 'Start Mapping V2';
-                        mappingBtn.classList.remove('active');
-                        mappingPanel.classList.remove('active');
-                        mappingIndicator.style.display = 'none';
-                    }
-                } catch (error) {
-                    console.error('Failed to stop mapping v2:', error);
-                }
-            }
-        }
-
-        async function updateMappingV2Status() {
-            if (!mappingV2Active) return;
-            
-            try {
-                const response = await fetch('/api/automation/v2/status');
-                const data = await response.json();
-                
-                if (data.success) {
-                    automationV2Status = data;
-                    const status = data.status;
-                    document.getElementById('mappingV2State').textContent = status.state || '-';
-                    document.getElementById('robotV2PosX').textContent = `${status.robot_position?.x || 0} mm`;
-                    document.getElementById('robotV2PosY').textContent = `${status.robot_position?.y || 0} mm`;
-                    document.getElementById('robotV2Angle').textContent = `${status.robot_position?.theta || 0}°`;
-                    
-                    if (status.current_goal) {
-                        document.getElementById('currentGoal').textContent = 
-                            `(${status.current_goal.x}, ${status.current_goal.y})`;
-                    } else {
-                        document.getElementById('currentGoal').textContent = 'None';
-                    }
-                    
-                    document.getElementById('wallFollowing').textContent = status.wall_following ? 'Yes' : 'No';
-                    document.getElementById('calibrationStatus').textContent = 
-                        status.calibration_complete ? `Yes (${status.static_obstacles_count} points)` : 'No';
-                    
-                    // Update robot position on map
-                    if (status.robot_position) {
-                        robotX = MAP_SIZE / 2 + status.robot_position.x / (MAP_RESOLUTION * 1000);
-                        robotY = MAP_SIZE / 2 - status.robot_position.y / (MAP_RESOLUTION * 1000);
-                        robotTheta = (status.robot_position.theta * Math.PI) / 180;
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to get automation v2 status:', error);
-            }
-        }
-
-        async function setGoal() {
-            const goalX = parseFloat(document.getElementById('goalX').value);
-            const goalY = parseFloat(document.getElementById('goalY').value);
-            
-            if (isNaN(goalX) || isNaN(goalY)) {
-                alert('Please enter valid goal coordinates');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/automation/v2/set_goal', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ x: goalX, y: goalY })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert(`Goal set to (${goalX}, ${goalY})`);
-                } else {
-                    alert('Failed to set goal: ' + data.error);
-                }
-            } catch (error) {
-                console.error('Failed to set goal:', error);
-                alert('Failed to set goal');
-            }
-        }
-        
         function updateMappingStatus(status) {
             if (!status || !status.status) return;
             
@@ -8701,7 +8396,7 @@ Category: Web | Size: 58.9 KB | Lines: 1569
             });
             
             // Draw robot center
-            polarCtx.fillStyle = (mappingActive || mappingV2Active) ? '#ff00ff' : '#00aaff';
+            polarCtx.fillStyle = mappingActive ? '#ff00ff' : '#00aaff';
             polarCtx.beginPath();
             polarCtx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
             polarCtx.fill();
@@ -8748,46 +8443,6 @@ Category: Web | Size: 58.9 KB | Lines: 1569
                     }
                 }
             });
-        }
-        
-        // Update the drawMapView function to show the goal
-        function drawGoalOnMap(ctx, goalX, goalY, scale, offsetX, offsetY) {
-            if (!goalX || !goalY) return;
-            
-            // Convert goal to grid coordinates
-            const goalGridX = MAP_SIZE / 2 + goalX / (MAP_RESOLUTION * 1000);
-            const goalGridY = MAP_SIZE / 2 - goalY / (MAP_RESOLUTION * 1000);
-            
-            const goalScreenX = goalGridX * MAP_RESOLUTION * scale + offsetX;
-            const goalScreenY = goalGridY * MAP_RESOLUTION * scale + offsetY;
-            
-            // Draw goal marker
-            ctx.strokeStyle = '#ff00ff';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(goalScreenX - 15, goalScreenY);
-            ctx.lineTo(goalScreenX + 15, goalScreenY);
-            ctx.moveTo(goalScreenX, goalScreenY - 15);
-            ctx.lineTo(goalScreenX, goalScreenY + 15);
-            ctx.stroke();
-            
-            // Draw circle around goal
-            ctx.beginPath();
-            ctx.arc(goalScreenX, goalScreenY, 20, 0, 2 * Math.PI);
-            ctx.stroke();
-            
-            // Draw M-line if we have current position and goal
-            if (automationV2Status && automationV2Status.status.current_goal) {
-                ctx.strokeStyle = '#ff00ff66';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                ctx.beginPath();
-                ctx.moveTo(robotX * MAP_RESOLUTION * scale + offsetX, 
-                           robotY * MAP_RESOLUTION * scale + offsetY);
-                ctx.lineTo(goalScreenX, goalScreenY);
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
         }
         
         function drawMapView() {
@@ -8850,7 +8505,7 @@ Category: Web | Size: 58.9 KB | Lines: 1569
             
             // Draw robot path
             if (robotPath.length > 1) {
-                mapCtx.strokeStyle = (mappingActive || mappingV2Active) ? '#ff00ff66' : '#00ff8866';
+                mapCtx.strokeStyle = mappingActive ? '#ff00ff66' : '#00ff8866';
                 mapCtx.lineWidth = 2;
                 mapCtx.beginPath();
                 mapCtx.moveTo(robotPath[0].x * MAP_RESOLUTION * scale, robotPath[0].y * MAP_RESOLUTION * scale);
@@ -8865,13 +8520,13 @@ Category: Web | Size: 58.9 KB | Lines: 1569
             const robotScreenY = robotY * MAP_RESOLUTION * scale;
             
             // Robot body
-            mapCtx.fillStyle = (mappingActive || mappingV2Active) ? '#ff00ff' : '#00aaff';
+            mapCtx.fillStyle = mappingActive ? '#ff00ff' : '#00aaff';
             mapCtx.beginPath();
             mapCtx.arc(robotScreenX, robotScreenY, 8, 0, 2 * Math.PI);
             mapCtx.fill();
             
             // Robot direction
-            mapCtx.strokeStyle = (mappingActive || mappingV2Active) ? '#ff00ff' : '#00aaff';
+            mapCtx.strokeStyle = mappingActive ? '#ff00ff' : '#00aaff';
             mapCtx.lineWidth = 3;
             mapCtx.beginPath();
             mapCtx.moveTo(robotScreenX, robotScreenY);
@@ -8882,14 +8537,6 @@ Category: Web | Size: 58.9 KB | Lines: 1569
             mapCtx.stroke();
             
             mapCtx.restore();
-            
-            // Add this to the drawMapView function after drawing the robot
-            if (automationV2Status && automationV2Status.status.current_goal) {
-                drawGoalOnMap(mapCtx, 
-                              automationV2Status.status.current_goal.x,
-                              automationV2Status.status.current_goal.y,
-                              scale, offsetX, offsetY);
-            }
             
             // Draw scale
             mapCtx.fillStyle = '#fff';
@@ -8942,7 +8589,7 @@ Category: Web | Size: 58.9 KB | Lines: 1569
         
         // Robot movement (simulation only when mapping is not active)
         async function moveRobot(direction) {
-            if (mappingActive || mappingV2Active) {
+            if (mappingActive) {
                 alert('Manual control disabled during autonomous mapping');
                 return;
             }
@@ -8995,7 +8642,7 @@ Category: Web | Size: 58.9 KB | Lines: 1569
         
         // Keyboard controls
         document.addEventListener('keydown', (e) => {
-            if (!mappingActive && !mappingV2Active) {
+            if (!mappingActive) {
                 switch (e.key) {
                     case 'ArrowUp':
                     case 'w':
@@ -9021,7 +8668,7 @@ Category: Web | Size: 58.9 KB | Lines: 1569
         });
         
         document.addEventListener('keyup', (e) => {
-            if (!mappingActive && !mappingV2Active && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(e.key)) {
+            if (!mappingActive && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(e.key)) {
                 moveRobot('stop');
             }
         });

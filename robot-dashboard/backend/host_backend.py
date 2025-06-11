@@ -27,6 +27,7 @@ from backend.sensors.system_monitor import get_system_monitor
 from backend.motors.servo_control import ServoController
 from backend.motors.actuator_control import get_actuator_controller
 from backend.automation import get_auto_mapper
+from backend.automation_aiming import get_auto_aiming
 
 # Create Flask app
 app = Flask(__name__, 
@@ -57,6 +58,7 @@ actuator_controller = get_actuator_controller()
 
 # Initialize automation components
 auto_mapper = get_auto_mapper(motor_controller, lidar_sensor)
+auto_aiming = get_auto_aiming(servo_controller, thermal_camera_sensor)
 
 # Set ROS bridge for servo controller
 servo_controller.set_ros_bridge(ros_bridge)
@@ -411,6 +413,86 @@ def move_to_preset(position):
         return jsonify(result), 400
 
 # =============================================================================
+# AUTO AIMING API ROUTES
+# =============================================================================
+
+@app.route('/api/aiming/auto/enable', methods=['POST'])
+def enable_auto_aiming():
+    """Enable automatic aiming based on thermal targets"""
+    try:
+        result = auto_aiming.enable()
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        logger.error(f"Error enabling auto aiming: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/aiming/auto/disable', methods=['POST'])
+def disable_auto_aiming():
+    """Disable automatic aiming"""
+    try:
+        result = auto_aiming.disable()
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        logger.error(f"Error disabling auto aiming: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/aiming/auto/status', methods=['GET'])
+def get_auto_aiming_status():
+    """Get auto aiming status"""
+    try:
+        status = auto_aiming.get_status()
+        return jsonify({
+            "success": True,
+            "status": status
+        })
+    except Exception as e:
+        logger.error(f"Error getting auto aiming status: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/aiming/auto/threshold', methods=['POST'])
+def set_auto_aiming_threshold():
+    """Set temperature threshold for auto aiming"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'threshold' not in data:
+            return jsonify({"error": "No threshold provided"}), 400
+        
+        threshold = float(data['threshold'])
+        result = auto_aiming.set_threshold(threshold)
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        logger.error(f"Error setting auto aiming threshold: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+# =============================================================================
 # ACTUATOR CONTROL API ROUTES
 # =============================================================================
 
@@ -671,7 +753,8 @@ def get_system_status():
             "servo": servo_controller.connected,
             "system_monitor": system_monitor.subscription_active,
             "actuator": actuator_controller.connected,
-            "automation": auto_mapper.mapping_active
+            "automation": auto_mapper.mapping_active,
+            "auto_aiming": auto_aiming.enabled
         }
     }), 200 if ros_connected else 503
 
@@ -713,7 +796,7 @@ def update_config():
         config_manager.update_config(config_updates)
         
         # Update ROS bridge connection
-        global ros_bridge, motor_controller, lidar_sensor, thermal_camera_sensor, servo_controller, actuator_controller, auto_mapper
+        global ros_bridge, motor_controller, lidar_sensor, thermal_camera_sensor, servo_controller, actuator_controller, auto_mapper, auto_aiming
         ros_bridge = get_ros_bridge(CONFIG["PI_IP"], CONFIG["ROS_BRIDGE_PORT"])
         motor_controller = get_motor_controller()
         lidar_sensor = get_lidar_sensor()
@@ -723,8 +806,9 @@ def update_config():
         servo_controller.set_ros_bridge(ros_bridge)
         actuator_controller.set_ros_bridge(ros_bridge)
         
-        # Recreate auto mapper with new components
+        # Recreate auto mapper and auto aiming with new components
         auto_mapper = get_auto_mapper(motor_controller, lidar_sensor)
+        auto_aiming = get_auto_aiming(servo_controller, thermal_camera_sensor)
         
         logger.info(f"Configuration updated and saved: IP={new_ip}, Port={new_port}")
         
