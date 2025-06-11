@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -180,19 +181,18 @@
 
         /* Add tick marks for discrete positions */
         .angle-slider {
-            background-image: linear-gradient(to right, 
-                #444 0%, #444 1px,
-                transparent 1px, transparent 20%,
-                #444 20%, #444 21%,
-                transparent 21%, transparent 40%,
-                #444 40%, #444 41%,
-                transparent 41%, transparent 60%,
-                #444 60%, #444 61%,
-                transparent 61%, transparent 80%,
-                #444 80%, #444 81%,
-                transparent 81%, transparent 99%,
-                #444 99%, #444 100%
-            );
+            background-image: linear-gradient(to right,
+                    #444 0%, #444 1px,
+                    transparent 1px, transparent 20%,
+                    #444 20%, #444 21%,
+                    transparent 21%, transparent 40%,
+                    #444 40%, #444 41%,
+                    transparent 41%, transparent 60%,
+                    #444 60%, #444 61%,
+                    transparent 61%, transparent 80%,
+                    #444 80%, #444 81%,
+                    transparent 81%, transparent 99%,
+                    #444 99%, #444 100%);
             background-size: 100% 100%;
             background-repeat: no-repeat;
         }
@@ -315,9 +315,9 @@
             position: absolute;
             width: 100%;
             height: 100%;
-            background-image: 
-                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
             background-size: 20px 20px;
         }
 
@@ -511,7 +511,8 @@
             color: #ff6b6b;
         }
 
-        .speed-slider, .duration-slider {
+        .speed-slider,
+        .duration-slider {
             width: 100%;
             height: 8px;
             -webkit-appearance: none;
@@ -650,9 +651,17 @@
         }
 
         @keyframes pulse {
-            0% { box-shadow: 0 0 10px rgba(255, 107, 107, 0.3); }
-            50% { box-shadow: 0 0 20px rgba(255, 107, 107, 0.5); }
-            100% { box-shadow: 0 0 10px rgba(255, 107, 107, 0.3); }
+            0% {
+                box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+            }
+
+            100% {
+                box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+            }
         }
 
         .auto-aim-info {
@@ -767,15 +776,15 @@
             .controls-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .actuator-controls {
                 grid-template-columns: 1fr;
             }
-            
+
             .speed-duration-controls {
                 grid-template-columns: 1fr;
             }
-            
+
             .preset-buttons {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -785,7 +794,7 @@
             .header h1 {
                 font-size: 1.8em;
             }
-            
+
             .servo-visual {
                 width: 250px;
                 height: 250px;
@@ -794,6 +803,7 @@
     </style>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
+
 <body>
     <div class="header">
         <h1>Aiming System Control Panel</h1>
@@ -816,7 +826,7 @@
     <div class="main-container">
         <!-- Servo Control Section -->
         <h2 class="section-title">Servo Aiming Control</h2>
-        
+
         <div class="controls-grid">
             <!-- Pan Control -->
             <div class="servo-card">
@@ -824,13 +834,15 @@
                     <h2 class="servo-title">Pan Control (Horizontal)</h2>
                     <span class="servo-status" id="panStatus">IDLE</span>
                 </div>
+                <div class="movement-info" id="panMovement"
+                    style="color: #00ff88; font-size: 0.9em; margin-top: 10px; text-align: center; min-height: 20px;">
+                </div>
                 <div class="angle-control">
                     <div class="angle-label">
                         <span>Angle Control</span>
                         <span class="angle-value" id="panValue">135°</span>
                     </div>
-                    <input type="range" class="angle-slider" id="panSlider" 
-                           min="75" max="195" value="135" step="30">
+                    <input type="range" class="angle-slider" id="panSlider" min="75" max="195" value="135" step="30">
                     <div class="angle-marks">
                         <span class="angle-mark">75°<br>Left</span>
                         <span class="angle-mark">105°</span>
@@ -847,13 +859,15 @@
                     <h2 class="servo-title">Tilt Control (Vertical)</h2>
                     <span class="servo-status" id="tiltStatus">IDLE</span>
                 </div>
+                <div class="movement-info" id="tiltMovement"
+                    style="color: #00ff88; font-size: 0.9em; margin-top: 10px; text-align: center; min-height: 20px;">
+                </div>
                 <div class="angle-control">
                     <div class="angle-label">
                         <span>Angle Control</span>
                         <span class="angle-value" id="tiltValue">135°</span>
                     </div>
-                    <input type="range" class="angle-slider" id="tiltSlider" 
-                           min="75" max="195" value="135" step="30">
+                    <input type="range" class="angle-slider" id="tiltSlider" min="75" max="195" value="135" step="30">
                     <div class="angle-marks">
                         <span class="angle-mark">75°<br>Down</span>
                         <span class="angle-mark">105°</span>
@@ -896,7 +910,7 @@
         <!-- Auto Aiming Section -->
         <div class="auto-aim-section">
             <h2 class="section-title">Automatic Heat Targeting System</h2>
-            
+
             <div class="auto-aim-card">
                 <div class="auto-aim-header">
                     <h3 class="auto-aim-title">Thermal Auto-Aim Control</h3>
@@ -905,7 +919,8 @@
                         <button class="auto-aim-btn enable" id="enableAutoAimBtn" onclick="toggleAutoAim(true)">
                             Enable Auto-Aim
                         </button>
-                        <button class="auto-aim-btn disable" id="disableAutoAimBtn" onclick="toggleAutoAim(false)" style="display: none;">
+                        <button class="auto-aim-btn disable" id="disableAutoAimBtn" onclick="toggleAutoAim(false)"
+                            style="display: none;">
                             Disable Auto-Aim
                         </button>
                     </div>
@@ -935,8 +950,8 @@
                         <span>Temperature Threshold</span>
                         <span class="threshold-value" id="thresholdValue">100°C</span>
                     </div>
-                    <input type="range" class="threshold-slider" id="thresholdSlider" 
-                           min="30" max="300" value="100" step="10">
+                    <input type="range" class="threshold-slider" id="thresholdSlider" min="30" max="300" value="100"
+                        step="10">
                     <div style="display: flex; justify-content: space-between; margin-top: 5px;">
                         <span style="color: #666; font-size: 0.8em;">30°C</span>
                         <span style="color: #666; font-size: 0.8em;">300°C</span>
@@ -944,7 +959,8 @@
                 </div>
 
                 <p style="color: #888; font-size: 0.9em; margin-top: 20px; text-align: center;">
-                    <strong>Note:</strong> Auto-aim will target the leftmost heat source above the threshold temperature.
+                    <strong>Note:</strong> Auto-aim will target the leftmost heat source above the threshold
+                    temperature.
                     Servo movement is limited to ±60° from center position for safety.
                 </p>
             </div>
@@ -953,7 +969,7 @@
         <!-- Actuator Control Section -->
         <div class="actuator-section">
             <h2 class="section-title">Fire Extinguisher Trigger Control</h2>
-            
+
             <div class="actuator-card">
                 <div class="actuator-header">
                     <h3 class="actuator-title">Linear Actuator Control</h3>
@@ -983,8 +999,8 @@
                             <span>Speed Control</span>
                             <span class="control-value" id="speedValue">100%</span>
                         </div>
-                        <input type="range" class="speed-slider" id="speedSlider" 
-                               min="0" max="100" value="100" step="25">
+                        <input type="range" class="speed-slider" id="speedSlider" min="0" max="100" value="100"
+                            step="25">
                         <div class="speed-marks">
                             <span style="float: left; color: #666; font-size: 0.8em;">0%</span>
                             <span style="float: right; color: #666; font-size: 0.8em;">100%</span>
@@ -996,8 +1012,8 @@
                             <span>Duration (0 = Continuous)</span>
                             <span class="control-value" id="durationValue">0s</span>
                         </div>
-                        <input type="range" class="duration-slider" id="durationSlider" 
-                               min="0" max="10" value="0" step="0.5">
+                        <input type="range" class="duration-slider" id="durationSlider" min="0" max="10" value="0"
+                            step="0.5">
                         <div class="speed-marks">
                             <span style="float: left; color: #666; font-size: 0.8em;">0s</span>
                             <span style="float: right; color: #666; font-size: 0.8em;">10s</span>
@@ -1064,7 +1080,7 @@
             const timestamp = new Date().toLocaleTimeString();
             entry.textContent = `[${timestamp}] ${message}`;
             logContainer.insertBefore(entry, logContainer.firstChild);
-            
+
             // Keep only last 10 entries
             while (logContainer.children.length > 10) {
                 logContainer.removeChild(logContainer.lastChild);
@@ -1075,45 +1091,45 @@
         function connectWebSocket() {
             socket = io();
 
-            socket.on('connect', function() {
+            socket.on('connect', function () {
                 console.log('Socket.IO connected');
                 isConnected = true;
-                
+
                 // Check both connections
                 checkActuatorConnection().then(actuatorConnected => {
                     updateConnectionStatus(true, actuatorConnected);
                 });
-                
+
                 addLog('Connected to servo controller', 'success');
-                
+
                 // Request initial servo state
                 socket.emit('request_servo_state');
             });
 
-            socket.on('servo_state', function(data) {
+            socket.on('servo_state', function (data) {
                 updateServoState(data);
             });
 
-            socket.on('servo_response', function(data) {
+            socket.on('servo_response', function (data) {
                 console.log('Servo response:', data);
                 if (data.result && !data.result.success) {
                     addLog(`Error: ${data.result.error}`, 'error');
                 }
             });
 
-            socket.on('servo_error', function(data) {
+            socket.on('servo_error', function (data) {
                 console.error('Servo error:', data);
                 addLog(`Error: ${data.error}`, 'error');
             });
 
-            socket.on('disconnect', function() {
+            socket.on('disconnect', function () {
                 console.log('Socket.IO disconnected');
                 isConnected = false;
                 updateConnectionStatus(false, false);
                 addLog('Connection lost - Reconnecting...', 'error');
             });
 
-            socket.on('connect_error', function(error) {
+            socket.on('connect_error', function (error) {
                 console.error('Socket.IO connection error:', error);
                 updateConnectionStatus(false, false);
             });
@@ -1125,7 +1141,7 @@
             const servoText = document.getElementById('servoStatusText');
             const actuatorIndicator = document.getElementById('actuatorConnectionStatus');
             const actuatorText = document.getElementById('actuatorStatusText');
-            
+
             if (servoConnected) {
                 servoIndicator.classList.add('connected');
                 servoText.textContent = 'Connected';
@@ -1133,7 +1149,7 @@
                 servoIndicator.classList.remove('connected');
                 servoText.textContent = 'Disconnected';
             }
-            
+
             if (actuatorConnected) {
                 actuatorIndicator.classList.add('connected');
                 actuatorText.textContent = 'Connected';
@@ -1142,13 +1158,13 @@
                 actuatorText.textContent = 'Disconnected';
             }
         }
-        
+
         // Check actuator connection status
         async function checkActuatorConnection() {
             try {
                 const response = await fetch('/api/actuator/status');
                 const data = await response.json();
-                
+
                 if (data.success && data.state) {
                     return data.state.connected;
                 }
@@ -1162,19 +1178,19 @@
         // Update servo state from WebSocket data
         function updateServoState(data) {
             isUpdatingFromServer = true;
-            
+
             // Store current values
             currentPanValue = Math.round(data.pan_angle);
             currentTiltValue = Math.round(data.tilt_angle);
-            
+
             // Update displays
             document.getElementById('panValue').textContent = `${currentPanValue}°`;
             document.getElementById('tiltValue').textContent = `${currentTiltValue}°`;
-            
+
             // Update status
             const panStatus = document.getElementById('panStatus');
             const tiltStatus = document.getElementById('tiltStatus');
-            
+
             if (data.pan_moving) {
                 panStatus.textContent = 'MOVING';
                 panStatus.classList.add('active');
@@ -1182,7 +1198,7 @@
                 panStatus.textContent = 'IDLE';
                 panStatus.classList.remove('active');
             }
-            
+
             if (data.tilt_moving) {
                 tiltStatus.textContent = 'MOVING';
                 tiltStatus.classList.add('active');
@@ -1190,24 +1206,24 @@
                 tiltStatus.textContent = 'IDLE';
                 tiltStatus.classList.remove('active');
             }
-            
+
             // Update sliders only if not being manipulated by user
             const panSlider = document.getElementById('panSlider');
             const tiltSlider = document.getElementById('tiltSlider');
-            
+
             if (!panSlider.matches(':active') && !panSlider.matches(':focus')) {
                 panSlider.value = currentPanValue;
                 updateSliderBackground('panSlider', currentPanValue);
             }
-            
+
             if (!tiltSlider.matches(':active') && !tiltSlider.matches(':focus')) {
                 tiltSlider.value = currentTiltValue;
                 updateSliderBackground('tiltSlider', currentTiltValue);
             }
-            
+
             // Update visualization
             updateCrosshair(currentPanValue, currentTiltValue);
-            
+
             isUpdatingFromServer = false;
         }
 
@@ -1223,11 +1239,12 @@
         // Update crosshair position
         function updateCrosshair(pan, tilt) {
             const crosshair = document.getElementById('crosshair');
-            
+
             // Map angles to percentages (75-195 degrees to 0-100%)
-            const panPercent = ((pan - 75) / 120) * 100;
-            const tiltPercent = 100 - ((tilt - 75) / 120) * 100; // Invert for visual
-            
+            // INVERT the pan percentage for visualization
+            const panPercent = 100 - ((pan - 75) / 120) * 100;  // Changed: added "100 -" to invert
+            const tiltPercent = 100 - ((tilt - 75) / 120) * 100; // Tilt is already inverted
+
             crosshair.style.left = `${panPercent}%`;
             crosshair.style.top = `${tiltPercent}%`;
         }
@@ -1235,14 +1252,14 @@
         // Send servo command
         function sendServoCommand(pan, tilt) {
             if (!isConnected || !socket || isUpdatingFromServer) return;
-            
+
             socket.emit('servo_command', {
                 type: 'servo_command',
                 action: 'move',
                 pan_angle: parseFloat(pan),
                 tilt_angle: parseFloat(tilt)
             });
-            
+
             addLog(`Command sent: Pan ${pan}°, Tilt ${tilt}°`, 'success');
         }
 
@@ -1265,12 +1282,12 @@
                 const endpoint = enable ? '/api/aiming/auto/enable' : '/api/aiming/auto/disable';
                 const response = await fetch(endpoint, { method: 'POST' });
                 const data = await response.json();
-                
+
                 if (data.success) {
                     autoAimEnabled = enable;
                     updateAutoAimUI(enable);
                     addLog(enable ? 'Auto-aim enabled' : 'Auto-aim disabled', 'success');
-                    
+
                     if (enable) {
                         // Start status polling
                         startAutoAimStatusPolling();
@@ -1292,7 +1309,7 @@
             const status = document.getElementById('autoAimStatus');
             const enableBtn = document.getElementById('enableAutoAimBtn');
             const disableBtn = document.getElementById('disableAutoAimBtn');
-            
+
             if (enabled) {
                 status.textContent = 'ACTIVE';
                 status.classList.add('active');
@@ -1310,10 +1327,10 @@
         function startAutoAimStatusPolling() {
             // Clear any existing interval
             stopAutoAimStatusPolling();
-            
+
             // Update immediately
             updateAutoAimStatus();
-            
+
             // Poll every 500ms
             autoAimStatusInterval = setInterval(updateAutoAimStatus, 500);
         }
@@ -1331,28 +1348,93 @@
             try {
                 const response = await fetch('/api/aiming/auto/status');
                 const data = await response.json();
-                
+
                 if (data.success && data.status) {
                     const status = data.status;
-                    
+
                     // Update target info
                     if (status.current_target) {
                         document.getElementById('currentTarget').textContent = 'Locked';
                         document.getElementById('targetTemp').textContent = `${status.current_target.temperature.toFixed(1)}°C`;
-                        document.getElementById('targetPosition').textContent = 
+                        document.getElementById('targetPosition').textContent =
                             `(${status.current_target.x}, ${status.current_target.y})`;
                     } else {
                         document.getElementById('currentTarget').textContent = 'Searching...';
                         document.getElementById('targetTemp').textContent = '-°C';
                         document.getElementById('targetPosition').textContent = '-';
                     }
-                    
+
                     // Update last detection time
                     if (status.last_target_time) {
                         const time = new Date(status.last_target_time);
                         document.getElementById('lastDetection').textContent = time.toLocaleTimeString();
                     }
-                    
+
+                    // Update movement displays and log movement
+                    if (status.last_movement && status.current_target) {
+                        const movement = status.last_movement;
+
+                        // Update pan movement display
+                        const panMovementEl = document.getElementById('panMovement');
+                        if (movement.pan_change !== 0) {
+                            const panStr = movement.pan_change >= 0 ? `+${movement.pan_change.toFixed(1)}` : movement.pan_change.toFixed(1);
+                            panMovementEl.textContent = `Movement: ${panStr}°`;
+                            panMovementEl.style.color = Math.abs(movement.pan_change) > 5 ? '#ff6b6b' : '#00ff88';
+                        } else {
+                            panMovementEl.textContent = '';
+                        }
+
+                        // Update tilt movement display
+                        const tiltMovementEl = document.getElementById('tiltMovement');
+                        if (movement.tilt_change !== 0) {
+                            const tiltStr = movement.tilt_change >= 0 ? `+${movement.tilt_change.toFixed(1)}` : movement.tilt_change.toFixed(1);
+                            tiltMovementEl.textContent = `Movement: ${tiltStr}°`;
+                            tiltMovementEl.style.color = Math.abs(movement.tilt_change) > 5 ? '#ff6b6b' : '#00ff88';
+                        } else {
+                            tiltMovementEl.textContent = '';
+                        }
+
+                        // Log significant movements
+                        if (movement.total_movement > 3.0) { // Only log if movement > 3 degrees
+                            const panStr = movement.pan_change >= 0 ? `+${movement.pan_change.toFixed(1)}` : movement.pan_change.toFixed(1);
+                            const tiltStr = movement.tilt_change >= 0 ? `+${movement.tilt_change.toFixed(1)}` : movement.tilt_change.toFixed(1);
+
+                            addLog(`Target tracked: Pan Δ${panStr}°, Tilt Δ${tiltStr}° (Total: ${movement.total_movement.toFixed(1)}°) @ ${status.current_target.temperature.toFixed(1)}°C`, 'success');
+                        }
+                    } else {
+                        // Clear movement displays when no target
+                        document.getElementById('panMovement').textContent = '';
+                        document.getElementById('tiltMovement').textContent = '';
+                    }
+
+                    // Update servo angle displays when auto-aim is active
+                    if (status.enabled && status.servo_position) {
+                        // Update the angle value displays
+                        document.getElementById('panValue').textContent = `${Math.round(status.servo_position.pan)}°`;
+                        document.getElementById('tiltValue').textContent = `${Math.round(status.servo_position.tilt)}°`;
+
+                        // Update the sliders (if not being manually controlled)
+                        const panSlider = document.getElementById('panSlider');
+                        const tiltSlider = document.getElementById('tiltSlider');
+
+                        if (!panSlider.matches(':active') && !panSlider.matches(':focus')) {
+                            panSlider.value = Math.round(status.servo_position.pan);
+                            updateSliderBackground('panSlider', Math.round(status.servo_position.pan));
+                        }
+
+                        if (!tiltSlider.matches(':active') && !tiltSlider.matches(':focus')) {
+                            tiltSlider.value = Math.round(status.servo_position.tilt);
+                            updateSliderBackground('tiltSlider', Math.round(status.servo_position.tilt));
+                        }
+
+                        // Update visualization
+                        updateCrosshair(status.servo_position.pan, status.servo_position.tilt);
+
+                        // Store current values
+                        currentPanValue = Math.round(status.servo_position.pan);
+                        currentTiltValue = Math.round(status.servo_position.tilt);
+                    }
+
                     // If not enabled but UI shows enabled, update UI
                     if (!status.enabled && autoAimEnabled) {
                         autoAimEnabled = false;
@@ -1377,7 +1459,7 @@
         function updateThresholdDisplay() {
             const value = document.getElementById('thresholdSlider').value;
             document.getElementById('thresholdValue').textContent = `${value}°C`;
-            
+
             // Update slider background
             const slider = document.getElementById('thresholdSlider');
             const percentage = (value - 30) / (300 - 30);
@@ -1392,9 +1474,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ threshold: parseFloat(threshold) })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     addLog(`Temperature threshold set to ${threshold}°C`, 'success');
                 } else {
@@ -1409,7 +1491,7 @@
         async function actuatorControl(action) {
             const speed = parseInt(document.getElementById('speedSlider').value);
             const duration = parseFloat(document.getElementById('durationSlider').value);
-            
+
             try {
                 const response = await fetch('/api/actuator/control', {
                     method: 'POST',
@@ -1422,13 +1504,13 @@
                         duration: duration
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     updateActuatorStatus(action);
                     addLog(data.message, 'success');
-                    
+
                     // Check actuator connection after command
                     checkActuatorConnection().then(connected => {
                         const servoConnected = isConnected;
@@ -1450,7 +1532,7 @@
             document.getElementById('durationSlider').value = duration;
             updateSpeedDisplay();
             updateDurationDisplay();
-            
+
             // Send command
             try {
                 const response = await fetch('/api/actuator/control', {
@@ -1464,9 +1546,9 @@
                         duration: duration
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     updateActuatorStatus(action);
                     addLog(data.message, 'success');
@@ -1481,11 +1563,11 @@
         function updateActuatorStatus(action) {
             const status = document.getElementById('actuatorStatus');
             actuatorState = action;
-            
+
             // Remove all status classes
             status.classList.remove('extending', 'retracting');
-            
-            switch(action) {
+
+            switch (action) {
                 case 'extend':
                     status.textContent = 'EXTENDING';
                     status.classList.add('extending');
@@ -1504,7 +1586,7 @@
         function updateSpeedDisplay() {
             const value = document.getElementById('speedSlider').value;
             document.getElementById('speedValue').textContent = `${value}%`;
-            
+
             // Update slider background
             const slider = document.getElementById('speedSlider');
             const percentage = value / 100;
@@ -1514,7 +1596,7 @@
         function updateDurationDisplay() {
             const value = document.getElementById('durationSlider').value;
             document.getElementById('durationValue').textContent = value == 0 ? 'Continuous' : `${value}s`;
-            
+
             // Update slider background
             const slider = document.getElementById('durationSlider');
             const percentage = value / 10;
@@ -1526,15 +1608,15 @@
             try {
                 const response = await fetch('/api/aiming/auto/status');
                 const data = await response.json();
-                
+
                 if (data.success && data.status) {
                     autoAimEnabled = data.status.enabled;
                     updateAutoAimUI(autoAimEnabled);
-                    
+
                     if (autoAimEnabled) {
                         startAutoAimStatusPolling();
                     }
-                    
+
                     // Set threshold slider to current value
                     document.getElementById('thresholdSlider').value = data.status.target_threshold;
                     updateThresholdDisplay();
@@ -1545,28 +1627,28 @@
         }
 
         // Slider event handlers - keep track of values independently
-        document.getElementById('panSlider').addEventListener('input', function(e) {
+        document.getElementById('panSlider').addEventListener('input', function (e) {
             if (isUpdatingFromServer) return;
             const value = parseInt(e.target.value);
             document.getElementById('panValue').textContent = `${value}°`;
             updateSliderBackground('panSlider', value);
         });
 
-        document.getElementById('panSlider').addEventListener('change', function(e) {
+        document.getElementById('panSlider').addEventListener('change', function (e) {
             if (isUpdatingFromServer) return;
             const panValue = parseInt(e.target.value);
             // Use the current tilt value from state, not from the slider
             sendServoCommand(panValue, currentTiltValue);
         });
 
-        document.getElementById('tiltSlider').addEventListener('input', function(e) {
+        document.getElementById('tiltSlider').addEventListener('input', function (e) {
             if (isUpdatingFromServer) return;
             const value = parseInt(e.target.value);
             document.getElementById('tiltValue').textContent = `${value}°`;
             updateSliderBackground('tiltSlider', value);
         });
 
-        document.getElementById('tiltSlider').addEventListener('change', function(e) {
+        document.getElementById('tiltSlider').addEventListener('change', function (e) {
             if (isUpdatingFromServer) return;
             const tiltValue = parseInt(e.target.value);
             // Use the current pan value from state, not from the slider
@@ -1579,12 +1661,12 @@
 
         // Initialize threshold slider
         document.getElementById('thresholdSlider').addEventListener('input', updateThresholdDisplay);
-        document.getElementById('thresholdSlider').addEventListener('change', function(e) {
+        document.getElementById('thresholdSlider').addEventListener('change', function (e) {
             setThreshold(e.target.value);
         });
 
         // Initialize on page load
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             connectWebSocket();
             updateSliderBackground('panSlider', 135);
             updateSliderBackground('tiltSlider', 135);
@@ -1592,13 +1674,13 @@
             updateDurationDisplay();
             updateThresholdDisplay();
             addLog('Aiming system initialized', 'success');
-            
+
             // Request initial state after a short delay
             setTimeout(() => {
                 if (socket && isConnected) {
                     socket.emit('request_servo_state');
                 }
-                
+
                 // Check actuator connection
                 checkActuatorConnection().then(actuatorConnected => {
                     updateConnectionStatus(isConnected, actuatorConnected);
@@ -1606,11 +1688,11 @@
                         addLog('Actuator service not available - Check if actuator_controller is running', 'error');
                     }
                 });
-                
+
                 // Check auto-aim status
                 checkAutoAimStatus();
             }, 500);
-            
+
             // Periodically check actuator connection
             setInterval(() => {
                 checkActuatorConnection().then(actuatorConnected => {
@@ -1620,7 +1702,7 @@
         });
 
         // Cleanup on page unload
-        window.addEventListener('beforeunload', function() {
+        window.addEventListener('beforeunload', function () {
             stopAutoAimStatusPolling();
             if (socket) {
                 socket.disconnect();
@@ -1628,4 +1710,5 @@
         });
     </script>
 </body>
+
 </html>

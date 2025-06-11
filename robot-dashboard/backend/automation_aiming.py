@@ -79,6 +79,13 @@ class AutoAiming:
         self.target_stability_threshold = 3  # Number of consistent detections before moving
         self.last_stable_target = None
         
+        # Movement tracking for logging
+        self.last_movement_angles = {
+            'pan_change': 0.0,
+            'tilt_change': 0.0,
+            'total_movement': 0.0
+        }
+        
         logger.info("Auto aiming system initialized with rate limiting")
     
     def enable(self) -> Dict[str, Any]:
@@ -179,6 +186,9 @@ class AutoAiming:
                             
                             # Check if we should move servos
                             if self._should_move_servos(pan_angle, tilt_angle):
+                                # Calculate movement angles for logging
+                                self._calculate_movement_angles(pan_angle, tilt_angle)
+                                
                                 # Send servo command with rate limiting
                                 self._send_servo_command(pan_angle, tilt_angle)
                     else:
@@ -248,6 +258,18 @@ class AutoAiming:
         self.command_cooldown = False
         return True
     
+    def _calculate_movement_angles(self, new_pan: float, new_tilt: float):
+        """Calculate the movement angles for logging"""
+        pan_change = new_pan - self.last_pan
+        tilt_change = new_tilt - self.last_tilt
+        total_movement = math.sqrt(pan_change**2 + tilt_change**2)
+        
+        self.last_movement_angles = {
+            'pan_change': pan_change,
+            'tilt_change': tilt_change,
+            'total_movement': total_movement
+        }
+    
     def _send_servo_command(self, pan_angle: float, tilt_angle: float):
         """Send servo command with rate limiting"""
         current_time = time.time()
@@ -265,7 +287,10 @@ class AutoAiming:
             self.last_tilt = tilt_angle
             self.last_command_time = current_time
             
-            logger.info(f"Servo command sent: Pan={pan_angle:.1f}°, Tilt={tilt_angle:.1f}° "
+            # Log with movement angles
+            logger.info(f"Servo command sent: Pan={pan_angle:.1f}° (Δ{self.last_movement_angles['pan_change']:+.1f}°), "
+                       f"Tilt={tilt_angle:.1f}° (Δ{self.last_movement_angles['tilt_change']:+.1f}°) "
+                       f"Total movement: {self.last_movement_angles['total_movement']:.1f}° "
                        f"(Target at {self.current_target['x']}, {self.current_target['y']} "
                        f"@ {self.current_target['temp']:.1f}°C)")
         else:
@@ -288,12 +313,13 @@ class AutoAiming:
                 temp = thermal_data[y][x]
                 
                 if temp >= self.target_threshold:
+                    flipped_y = height - 1 - y
                     targets.append({
                         'x': x,
-                        'y': y,
+                        'y': flipped_y,
                         'temp': temp,
                         'grid_x': x,
-                        'grid_y': y
+                        'grid_y': flipped_y
                     })
         
         # Sort by temperature (highest first)
@@ -311,11 +337,11 @@ class AutoAiming:
             return targets[0]
         
         # Find leftmost target (minimum x coordinate)
-        leftmost = min(targets, key=lambda t: t['x'])
-        return leftmost
+        hottest = max(targets, key=lambda t: t['temp'])
+        return hottest
     
     def _calculate_servo_angles(self, target: Dict[str, Any], 
-                               frame_width: int, frame_height: int) -> Tuple[float, float]:
+                           frame_width: int, frame_height: int) -> Tuple[float, float]:
         """Calculate servo angles to aim at target"""
         # Get target position as fraction of frame (0-1)
         target_x_norm = target['x'] / (frame_width - 1)
@@ -327,14 +353,17 @@ class AutoAiming:
         y_offset = target_y_norm - 0.5
         
         # Convert to degrees based on FOV
-        pan_offset = x_offset * self.thermal_fov_horizontal
-        tilt_offset = y_offset * self.thermal_fov_vertical
+        # TRIPLE THE MOVEMENT COEFFICIENT HERE
+        pan_movement_multiplier = 2.2
+        tilt_movement_multiplier = 1.5
+        pan_offset = x_offset * self.thermal_fov_horizontal * pan_movement_multiplier
+        tilt_offset = y_offset * self.thermal_fov_vertical * tilt_movement_multiplier
         
         # Calculate target servo angles
         target_pan = self.pan_center + pan_offset
         target_tilt = self.tilt_center + tilt_offset
         
-        # Apply limits (±60 degrees from center)
+        # Apply limits (±60 degrees from center) - This ensures it stays in range
         target_pan = max(self.pan_min, min(self.pan_max, target_pan))
         target_tilt = max(self.tilt_min, min(self.tilt_max, target_tilt))
         
@@ -360,7 +389,8 @@ class AutoAiming:
                 "min_interval": self.min_command_interval,
                 "in_cooldown": self.command_cooldown,
                 "time_since_last": time.time() - self.last_command_time if self.last_command_time > 0 else None
-            }
+            },
+            "last_movement": self.last_movement_angles
         }
         
         if self.current_target:
