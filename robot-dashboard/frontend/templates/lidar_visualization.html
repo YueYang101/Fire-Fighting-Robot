@@ -523,6 +523,7 @@
         <button class="control-button" id="followRobotBtn" onclick="toggleFollowRobot()">Follow Robot</button>
         <button class="control-button" onclick="resetView()">Reset View</button>
         <button class="control-button mapping" id="mappingBtn" onclick="toggleMapping()">Start Mapping</button>
+        <button class="control-button mapping" id="mappingV2Btn" onclick="toggleMappingV2()">Start Mapping V2</button>
     </div>
 
     <div class="info-panel">
@@ -631,6 +632,61 @@
         </div>
     </div>
 
+    <!-- Add this new panel after the existing mapping panel -->
+    <div class="mapping-panel" id="mappingV2Panel">
+        <h3 style="color: #ff00ff; margin-bottom: 15px;">Autonomous Mapping V2 Status</h3>
+        <div class="mapping-status">
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">State</div>
+                <div class="mapping-stat-value" id="mappingV2State">-</div>
+            </div>
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">Robot X</div>
+                <div class="mapping-stat-value" id="robotV2PosX">0 mm</div>
+            </div>
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">Robot Y</div>
+                <div class="mapping-stat-value" id="robotV2PosY">0 mm</div>
+            </div>
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">Angle</div>
+                <div class="mapping-stat-value" id="robotV2Angle">0°</div>
+            </div>
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">Goal</div>
+                <div class="mapping-stat-value" id="currentGoal">None</div>
+            </div>
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">Wall Following</div>
+                <div class="mapping-stat-value" id="wallFollowing">No</div>
+            </div>
+            <div class="mapping-stat">
+                <div class="mapping-stat-label">Calibrated</div>
+                <div class="mapping-stat-value" id="calibrationStatus">No</div>
+            </div>
+        </div>
+        
+        <!-- Goal Setting Section -->
+        <div style="margin-top: 20px; padding: 15px; background: #252525; border-radius: 10px;">
+            <h4 style="color: #ff00ff; margin-bottom: 10px;">Set Navigation Goal</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center;">
+                <div>
+                    <label style="color: #aaa; font-size: 0.9em;">X (mm):</label>
+                    <input type="number" id="goalX" value="2000" step="100" 
+                           style="width: 100%; padding: 5px; background: #1a1a1a; border: 1px solid #666; 
+                                  border-radius: 5px; color: #fff;">
+                </div>
+                <div>
+                    <label style="color: #aaa; font-size: 0.9em;">Y (mm):</label>
+                    <input type="number" id="goalY" value="0" step="100" 
+                           style="width: 100%; padding: 5px; background: #1a1a1a; border: 1px solid #666; 
+                                  border-radius: 5px; color: #fff;">
+                </div>
+                <button class="control-button" onclick="setGoal()" style="margin-top: 15px;">Set Goal</button>
+            </div>
+        </div>
+    </div>
+
     <div class="controls">
         <h3 style="color: #00ff88; margin-bottom: 15px; text-align: center;">Robot Movement (Manual Control)</h3>
         <div class="movement-controls">
@@ -657,7 +713,9 @@
         let followRobot = true;
         let latestScanData = null;
         let mappingActive = false;
+        let mappingV2Active = false;
         let automationStatus = null;
+        let automationV2Status = null;
         
         // Map parameters
         const MAP_SIZE = 100;  // 10m x 10m with 10cm resolution
@@ -806,6 +864,133 @@
             }
         }
         
+        // Add V2 mapping functions
+        async function toggleMappingV2() {
+            const mappingBtn = document.getElementById('mappingV2Btn');
+            const mappingPanel = document.getElementById('mappingV2Panel');
+            const mappingIndicator = document.getElementById('mappingIndicator');
+            
+            if (!mappingV2Active) {
+                // Start mapping v2
+                try {
+                    // First ensure lidar is started
+                    if (!scanning) {
+                        await startLidar();
+                    }
+                    
+                    // Get goal values
+                    const goalX = parseFloat(document.getElementById('goalX').value) || null;
+                    const goalY = parseFloat(document.getElementById('goalY').value) || null;
+                    
+                    const response = await fetch('/api/automation/v2/start', { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ goal_x: goalX, goal_y: goalY })
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        mappingV2Active = true;
+                        mappingBtn.textContent = 'Stop Mapping V2';
+                        mappingBtn.classList.add('active');
+                        mappingPanel.classList.add('active');
+                        mappingIndicator.style.display = 'flex';
+                        
+                        // Start status updates
+                        setInterval(updateMappingV2Status, 1000);
+                    } else {
+                        alert('Failed to start mapping v2: ' + data.error);
+                    }
+                } catch (error) {
+                    console.error('Failed to start mapping v2:', error);
+                    alert('Failed to start mapping v2');
+                }
+            } else {
+                // Stop mapping v2
+                try {
+                    const response = await fetch('/api/automation/v2/stop', { method: 'POST' });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        mappingV2Active = false;
+                        mappingBtn.textContent = 'Start Mapping V2';
+                        mappingBtn.classList.remove('active');
+                        mappingPanel.classList.remove('active');
+                        mappingIndicator.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Failed to stop mapping v2:', error);
+                }
+            }
+        }
+
+        async function updateMappingV2Status() {
+            if (!mappingV2Active) return;
+            
+            try {
+                const response = await fetch('/api/automation/v2/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    automationV2Status = data;
+                    const status = data.status;
+                    document.getElementById('mappingV2State').textContent = status.state || '-';
+                    document.getElementById('robotV2PosX').textContent = `${status.robot_position?.x || 0} mm`;
+                    document.getElementById('robotV2PosY').textContent = `${status.robot_position?.y || 0} mm`;
+                    document.getElementById('robotV2Angle').textContent = `${status.robot_position?.theta || 0}°`;
+                    
+                    if (status.current_goal) {
+                        document.getElementById('currentGoal').textContent = 
+                            `(${status.current_goal.x}, ${status.current_goal.y})`;
+                    } else {
+                        document.getElementById('currentGoal').textContent = 'None';
+                    }
+                    
+                    document.getElementById('wallFollowing').textContent = status.wall_following ? 'Yes' : 'No';
+                    document.getElementById('calibrationStatus').textContent = 
+                        status.calibration_complete ? `Yes (${status.static_obstacles_count} points)` : 'No';
+                    
+                    // Update robot position on map
+                    if (status.robot_position) {
+                        robotX = MAP_SIZE / 2 + status.robot_position.x / (MAP_RESOLUTION * 1000);
+                        robotY = MAP_SIZE / 2 - status.robot_position.y / (MAP_RESOLUTION * 1000);
+                        robotTheta = (status.robot_position.theta * Math.PI) / 180;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to get automation v2 status:', error);
+            }
+        }
+
+        async function setGoal() {
+            const goalX = parseFloat(document.getElementById('goalX').value);
+            const goalY = parseFloat(document.getElementById('goalY').value);
+            
+            if (isNaN(goalX) || isNaN(goalY)) {
+                alert('Please enter valid goal coordinates');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/automation/v2/set_goal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ x: goalX, y: goalY })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`Goal set to (${goalX}, ${goalY})`);
+                } else {
+                    alert('Failed to set goal: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Failed to set goal:', error);
+                alert('Failed to set goal');
+            }
+        }
+        
         function updateMappingStatus(status) {
             if (!status || !status.status) return;
             
@@ -916,7 +1101,7 @@
             });
             
             // Draw robot center
-            polarCtx.fillStyle = mappingActive ? '#ff00ff' : '#00aaff';
+            polarCtx.fillStyle = (mappingActive || mappingV2Active) ? '#ff00ff' : '#00aaff';
             polarCtx.beginPath();
             polarCtx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
             polarCtx.fill();
@@ -963,6 +1148,46 @@
                     }
                 }
             });
+        }
+        
+        // Update the drawMapView function to show the goal
+        function drawGoalOnMap(ctx, goalX, goalY, scale, offsetX, offsetY) {
+            if (!goalX || !goalY) return;
+            
+            // Convert goal to grid coordinates
+            const goalGridX = MAP_SIZE / 2 + goalX / (MAP_RESOLUTION * 1000);
+            const goalGridY = MAP_SIZE / 2 - goalY / (MAP_RESOLUTION * 1000);
+            
+            const goalScreenX = goalGridX * MAP_RESOLUTION * scale + offsetX;
+            const goalScreenY = goalGridY * MAP_RESOLUTION * scale + offsetY;
+            
+            // Draw goal marker
+            ctx.strokeStyle = '#ff00ff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(goalScreenX - 15, goalScreenY);
+            ctx.lineTo(goalScreenX + 15, goalScreenY);
+            ctx.moveTo(goalScreenX, goalScreenY - 15);
+            ctx.lineTo(goalScreenX, goalScreenY + 15);
+            ctx.stroke();
+            
+            // Draw circle around goal
+            ctx.beginPath();
+            ctx.arc(goalScreenX, goalScreenY, 20, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            // Draw M-line if we have current position and goal
+            if (automationV2Status && automationV2Status.status.current_goal) {
+                ctx.strokeStyle = '#ff00ff66';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(robotX * MAP_RESOLUTION * scale + offsetX, 
+                           robotY * MAP_RESOLUTION * scale + offsetY);
+                ctx.lineTo(goalScreenX, goalScreenY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
         }
         
         function drawMapView() {
@@ -1025,7 +1250,7 @@
             
             // Draw robot path
             if (robotPath.length > 1) {
-                mapCtx.strokeStyle = mappingActive ? '#ff00ff66' : '#00ff8866';
+                mapCtx.strokeStyle = (mappingActive || mappingV2Active) ? '#ff00ff66' : '#00ff8866';
                 mapCtx.lineWidth = 2;
                 mapCtx.beginPath();
                 mapCtx.moveTo(robotPath[0].x * MAP_RESOLUTION * scale, robotPath[0].y * MAP_RESOLUTION * scale);
@@ -1040,13 +1265,13 @@
             const robotScreenY = robotY * MAP_RESOLUTION * scale;
             
             // Robot body
-            mapCtx.fillStyle = mappingActive ? '#ff00ff' : '#00aaff';
+            mapCtx.fillStyle = (mappingActive || mappingV2Active) ? '#ff00ff' : '#00aaff';
             mapCtx.beginPath();
             mapCtx.arc(robotScreenX, robotScreenY, 8, 0, 2 * Math.PI);
             mapCtx.fill();
             
             // Robot direction
-            mapCtx.strokeStyle = mappingActive ? '#ff00ff' : '#00aaff';
+            mapCtx.strokeStyle = (mappingActive || mappingV2Active) ? '#ff00ff' : '#00aaff';
             mapCtx.lineWidth = 3;
             mapCtx.beginPath();
             mapCtx.moveTo(robotScreenX, robotScreenY);
@@ -1057,6 +1282,14 @@
             mapCtx.stroke();
             
             mapCtx.restore();
+            
+            // Add this to the drawMapView function after drawing the robot
+            if (automationV2Status && automationV2Status.status.current_goal) {
+                drawGoalOnMap(mapCtx, 
+                              automationV2Status.status.current_goal.x,
+                              automationV2Status.status.current_goal.y,
+                              scale, offsetX, offsetY);
+            }
             
             // Draw scale
             mapCtx.fillStyle = '#fff';
@@ -1109,7 +1342,7 @@
         
         // Robot movement (simulation only when mapping is not active)
         async function moveRobot(direction) {
-            if (mappingActive) {
+            if (mappingActive || mappingV2Active) {
                 alert('Manual control disabled during autonomous mapping');
                 return;
             }
@@ -1162,7 +1395,7 @@
         
         // Keyboard controls
         document.addEventListener('keydown', (e) => {
-            if (!mappingActive) {
+            if (!mappingActive && !mappingV2Active) {
                 switch (e.key) {
                     case 'ArrowUp':
                     case 'w':
@@ -1188,7 +1421,7 @@
         });
         
         document.addEventListener('keyup', (e) => {
-            if (!mappingActive && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(e.key)) {
+            if (!mappingActive && !mappingV2Active && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(e.key)) {
                 moveRobot('stop');
             }
         });

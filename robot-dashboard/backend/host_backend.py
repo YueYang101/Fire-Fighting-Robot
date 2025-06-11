@@ -27,6 +27,7 @@ from backend.sensors.system_monitor import get_system_monitor
 from backend.motors.servo_control import ServoController
 from backend.motors.actuator_control import get_actuator_controller
 from backend.automation import get_auto_mapper
+from backend.automation_v2 import get_auto_mapper_v2
 
 # Create Flask app
 app = Flask(__name__, 
@@ -57,6 +58,7 @@ actuator_controller = get_actuator_controller()
 
 # Initialize automation components
 auto_mapper = get_auto_mapper(motor_controller, lidar_sensor)
+auto_mapper_v2 = get_auto_mapper_v2(motor_controller, lidar_sensor)
 
 # Set ROS bridge for servo controller
 servo_controller.set_ros_bridge(ros_bridge)
@@ -330,6 +332,122 @@ def toggle_background_removal():
         })
     except Exception as e:
         logger.error(f"Error toggling background removal: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+# =============================================================================
+# AUTOMATION V2 API ROUTES
+# =============================================================================
+
+@app.route('/api/automation/v2/start', methods=['POST'])
+def start_automation_v2():
+    """Start autonomous mapping v2 with optional goal"""
+    try:
+        data = request.get_json()
+        goal_x = data.get('goal_x') if data else None
+        goal_y = data.get('goal_y') if data else None
+        
+        if auto_mapper_v2.start_mapping(goal_x, goal_y):
+            return jsonify({
+                "success": True,
+                "message": "Autonomous mapping v2 started",
+                "goal": {"x": goal_x, "y": goal_y} if goal_x and goal_y else None
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Mapping already active"
+            }), 400
+    except Exception as e:
+        logger.error(f"Error starting automation v2: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/automation/v2/stop', methods=['POST'])
+def stop_automation_v2():
+    """Stop autonomous mapping v2"""
+    try:
+        if auto_mapper_v2.stop_mapping():
+            return jsonify({
+                "success": True,
+                "message": "Autonomous mapping v2 stopped"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Mapping not active"
+            }), 400
+    except Exception as e:
+        logger.error(f"Error stopping automation v2: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/automation/v2/status', methods=['GET'])
+def get_automation_v2_status():
+    """Get current automation v2 status"""
+    try:
+        status = auto_mapper_v2.get_status()
+        return jsonify({
+            "success": True,
+            "status": status
+        })
+    except Exception as e:
+        logger.error(f"Error getting automation v2 status: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/automation/v2/set_goal', methods=['POST'])
+def set_automation_v2_goal():
+    """Set navigation goal for automation v2"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'x' not in data or 'y' not in data:
+            return jsonify({"error": "Goal coordinates (x, y) required"}), 400
+        
+        x = float(data['x'])
+        y = float(data['y'])
+        
+        if auto_mapper_v2.set_goal(x, y):
+            return jsonify({
+                "success": True,
+                "message": f"Goal set to ({x}, {y})",
+                "goal": {"x": x, "y": y}
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Failed to set goal"
+            }), 400
+    except Exception as e:
+        logger.error(f"Error setting goal: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/automation/v2/grid', methods=['GET'])
+def get_occupancy_grid():
+    """Get occupancy grid data"""
+    try:
+        grid = auto_mapper_v2.get_occupancy_grid()
+        return jsonify({
+            "success": True,
+            "grid": grid.tolist(),  # Convert numpy array to list
+            "width": grid.shape[1],
+            "height": grid.shape[0],
+            "resolution": auto_mapper_v2.occupancy_grid.resolution
+        })
+    except Exception as e:
+        logger.error(f"Error getting occupancy grid: {e}")
         return jsonify({
             "success": False,
             "error": str(e)
@@ -671,7 +789,8 @@ def get_system_status():
             "servo": servo_controller.connected,
             "system_monitor": system_monitor.subscription_active,
             "actuator": actuator_controller.connected,
-            "automation": auto_mapper.mapping_active
+            "automation": auto_mapper.mapping_active,
+            "automation_v2": auto_mapper_v2.mapping_active if auto_mapper_v2 else False,
         }
     }), 200 if ros_connected else 503
 
@@ -713,7 +832,7 @@ def update_config():
         config_manager.update_config(config_updates)
         
         # Update ROS bridge connection
-        global ros_bridge, motor_controller, lidar_sensor, thermal_camera_sensor, servo_controller, actuator_controller, auto_mapper
+        global ros_bridge, motor_controller, lidar_sensor, thermal_camera_sensor, servo_controller, actuator_controller, auto_mapper, auto_mapper_v2
         ros_bridge = get_ros_bridge(CONFIG["PI_IP"], CONFIG["ROS_BRIDGE_PORT"])
         motor_controller = get_motor_controller()
         lidar_sensor = get_lidar_sensor()
@@ -725,6 +844,7 @@ def update_config():
         
         # Recreate auto mapper with new components
         auto_mapper = get_auto_mapper(motor_controller, lidar_sensor)
+        auto_mapper_v2 = get_auto_mapper_v2(motor_controller, lidar_sensor)
         
         logger.info(f"Configuration updated and saved: IP={new_ip}, Port={new_port}")
         

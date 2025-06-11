@@ -1,4 +1,4 @@
-Code Scan Summary - 2025-06-11 00:04:24
+Code Scan Summary - 2025-06-11 00:25:48
 Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot/robot-dashboard
 Total files: 23
 Total size: 609.5 KB
@@ -10,11 +10,11 @@ Files by category:
   Web: 5 files
 
 All code files:
-  code_full_content.txt (Documentation, 298.5 KB)
+  code_full_content.txt (Documentation, 320.5 KB)
   code_scan_summary.txt (Documentation, 1.4 KB)
   requirements.txt (Documentation, 130.0 B)
   backend/__init__.py (Python, 285.0 B)
-  backend/automation.py (Python, 52.3 KB)
+  backend/automation.py (Python, 30.3 KB)
   backend/config_manager.py (Python, 3.3 KB)
   backend/host_backend.py (Python, 27.8 KB)
   backend/motors/__init__.py (Python, 0.0 B)
