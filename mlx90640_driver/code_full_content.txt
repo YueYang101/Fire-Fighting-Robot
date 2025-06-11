@@ -1,0 +1,376 @@
+================================================================================
+FULL CODE CONTENT DUMP
+Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot/mlx90640_driver
+Time: 2025-06-11 05:47:20
+================================================================================
+
+DIRECTORY STRUCTURE:
+----------------------------------------
+├── config/
+│   └── thermal_camera.yaml (360.0 B)
+├── launch/
+│   └── thermal_camera_launch.py (1.2 KB)
+├── mlx90640_driver/
+│   ├── __init__.py (0.0 B)
+│   └── thermal_camera_node.py (6.3 KB)
+├── resource/
+├── code_scanner.py (12.9 KB)
+├── package.xml (736.0 B)
+└── setup.py (1.6 KB)
+
+================================================================================
+STATISTICS:
+----------------------------------------
+Total code files: 6
+Total size: 10.1 KB
+Total lines: 297
+
+FILES BY CATEGORY:
+----------------------------------------
+Config: 2 files, 1.1 KB, 34 lines
+Python: 4 files, 9.1 KB, 263 lines
+
+================================================================================
+FILE CONTENTS:
+================================================================================
+
+================================================================================
+FILE: config/thermal_camera.yaml
+Category: Config | Size: 360.0 B | Lines: 11
+================================================================================
+thermal_camera_node:
+  ros__parameters:
+    # Publishing rate in Hz (how often to publish thermal frames)
+    # Note: Camera hardware runs at 1Hz, this controls ROS publishing
+    publish_rate: 0.5
+    
+    # Frame ID for header
+    frame_id: "thermal_camera"
+    
+    # Enable continuous publishing (set false for service-only mode)
+    enable_publisher: true
+================================================================================
+
+
+================================================================================
+FILE: package.xml
+Category: Config | Size: 736.0 B | Lines: 23
+================================================================================
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>mlx90640_driver</name>
+  <version>0.0.0</version>
+  <description>ROS 2 driver for MLX90640 thermal camera</description>
+  
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <license>Apache-2.0</license>
+  
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>mlx90640_interfaces</depend>
+  
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
+================================================================================
+
+
+================================================================================
+FILE: launch/thermal_camera_launch.py
+Category: Python | Size: 1.2 KB | Lines: 37
+================================================================================
+from launch import LaunchDescription
+from launch_ros.actions import Node
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+import os
+from ament_index_python.packages import get_package_share_directory
+
+def generate_launch_description():
+    # Get the package directory
+    pkg_dir = get_package_share_directory('mlx90640_driver')
+    
+    # Path to config file
+    config_file = os.path.join(pkg_dir, 'config', 'thermal_camera.yaml')
+    
+    return LaunchDescription([
+        DeclareLaunchArgument(
+            'config_file',
+            default_value=config_file,
+            description='Path to config file'
+        ),
+        
+        DeclareLaunchArgument(
+            'output',
+            default_value='screen',
+            description='Output type for node'
+        ),
+        
+        Node(
+            package='mlx90640_driver',
+            executable='thermal_camera_node',
+            name='thermal_camera_node',
+            output=LaunchConfiguration('output'),
+            parameters=[LaunchConfiguration('config_file')],
+            respawn=True,  # Restart if it crashes
+            respawn_delay=2.0,  # Wait 2 seconds before restarting
+        )
+    ])
+================================================================================
+
+
+================================================================================
+FILE: mlx90640_driver/__init__.py
+Category: Python | Size: 0.0 B | Lines: 0
+================================================================================
+
+================================================================================
+
+
+================================================================================
+FILE: mlx90640_driver/thermal_camera_node.py
+Category: Python | Size: 6.3 KB | Lines: 182
+================================================================================
+#!/usr/bin/env python3
+"""
+ROS 2 node for MLX90640 thermal camera
+Publishes thermal frames as both topic and service
+"""
+
+import time
+import warnings
+import numpy as np
+import board
+import busio
+import adafruit_mlx90640
+
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Header
+from mlx90640_interfaces.msg import ThermalFrame
+from mlx90640_interfaces.srv import GetThermalFrame
+
+# Suppress I2C frequency warning
+warnings.filterwarnings(
+    "ignore", category=RuntimeWarning,
+    message="I2C frequency is not settable in python, ignoring!"
+)
+
+class ThermalCameraNode(Node):
+    def __init__(self):
+        super().__init__('thermal_camera_node')
+        
+        # Declare parameters
+        self.declare_parameter('publish_rate', 0.5)  # Hz
+        self.declare_parameter('frame_id', 'thermal_camera')
+        self.declare_parameter('enable_publisher', True)
+        
+        # Get parameters
+        self.publish_rate = self.get_parameter('publish_rate').value
+        self.frame_id = self.get_parameter('frame_id').value
+        self.enable_publisher = self.get_parameter('enable_publisher').value
+        
+        # Initialize thermal camera with SAFE refresh rate
+        try:
+            i2c = busio.I2C(board.SCL, board.SDA)
+            self.mlx = adafruit_mlx90640.MLX90640(i2c)
+            # Use 1Hz - this is the most stable
+            self.mlx.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_1_HZ
+            self.flat = np.zeros(24 * 32, dtype=np.float32)
+            self.get_logger().info('MLX90640 thermal camera initialized at 1Hz (safe rate)')
+        except Exception as e:
+            self.get_logger().error(f'Failed to initialize thermal camera: {e}')
+            raise
+        
+        # Frame counter
+        self.frame_count = 0
+        
+        # Error handling
+        self.consecutive_errors = 0
+        self.max_consecutive_errors = 5
+        
+        # Create publisher
+        if self.enable_publisher:
+            self.publisher = self.create_publisher(ThermalFrame, 'thermal_frame', 10)
+            self.timer = self.create_timer(1.0 / self.publish_rate, self.publish_thermal_frame)
+            self.get_logger().info(f'Publishing thermal frames at {self.publish_rate} Hz')
+        
+        # Create service
+        self.get_frame_service = self.create_service(
+            GetThermalFrame, 
+            'get_thermal_frame', 
+            self.handle_get_thermal_frame
+        )
+        
+        self.get_logger().info('Thermal camera node ready')
+    
+    def read_thermal_frame(self):
+        """Read a frame from the thermal camera with error handling"""
+        try:
+            self.mlx.getFrame(self.flat)
+            self.frame_count += 1
+            self.consecutive_errors = 0  # Reset error counter on success
+            
+            # Calculate statistics
+            min_temp = float(np.min(self.flat))
+            max_temp = float(np.max(self.flat))
+            avg_temp = float(np.mean(self.flat))
+            
+            # Get center temperature (middle of 24x32 array)
+            frame2d = self.flat.reshape((24, 32))
+            center_temp = float(frame2d[12, 16])
+            
+            # Create message
+            msg = ThermalFrame()
+            msg.header = Header()
+            msg.header.stamp = self.get_clock().now().to_msg()
+            msg.header.frame_id = self.frame_id
+            
+            msg.width = 32
+            msg.height = 24
+            msg.data = self.flat.tolist()
+            
+            msg.min_temp = min_temp
+            msg.max_temp = max_temp
+            msg.avg_temp = avg_temp
+            msg.center_temp = center_temp
+            msg.frame_count = self.frame_count
+            
+            return True, msg
+            
+        except (ValueError, OSError) as e:
+            self.consecutive_errors += 1
+            self.get_logger().warning(
+                f'Error reading thermal frame ({self.consecutive_errors}/{self.max_consecutive_errors}): {e}'
+            )
+            
+            if self.consecutive_errors >= self.max_consecutive_errors:
+                self.get_logger().error('Too many consecutive errors, trying to reinitialize camera')
+                self.reinitialize_camera()
+            
+            # Small delay before retry
+            time.sleep(0.1)
+            return False, None
+        
+        except Exception as e:
+            self.get_logger().error(f'Unexpected error reading thermal frame: {e}')
+            return False, None
+    
+    def reinitialize_camera(self):
+        """Try to reinitialize the camera after errors"""
+        try:
+            self.get_logger().info('Attempting to reinitialize thermal camera...')
+            time.sleep(1)  # Give it a moment
+            
+            i2c = busio.I2C(board.SCL, board.SDA)
+            self.mlx = adafruit_mlx90640.MLX90640(i2c)
+            self.mlx.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_1_HZ
+            
+            self.consecutive_errors = 0
+            self.get_logger().info('Camera reinitialized successfully')
+            
+        except Exception as e:
+            self.get_logger().error(f'Failed to reinitialize camera: {e}')
+    
+    def publish_thermal_frame(self):
+        """Timer callback to publish thermal frames"""
+        success, msg = self.read_thermal_frame()
+        if success and msg:
+            self.publisher.publish(msg)
+            self.get_logger().debug(
+                f'Published frame {self.frame_count}: '
+                f'min={msg.min_temp:.1f}°C, max={msg.max_temp:.1f}°C'
+            )
+    
+    def handle_get_thermal_frame(self, request, response):
+        """Service callback to get a single thermal frame"""
+        success, msg = self.read_thermal_frame()
+        
+        response.success = success
+        if success:
+            response.message = f'Frame {self.frame_count} captured successfully'
+            response.frame = msg
+        else:
+            response.message = 'Failed to capture thermal frame'
+            response.frame = ThermalFrame()  # Empty frame
+        
+        return response
+
+def main(args=None):
+    rclpy.init(args=args)
+    
+    try:
+        node = ThermalCameraNode()
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        print(f'Error: {e}')
+    finally:
+        if 'node' in locals():
+            node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+================================================================================
+
+
+================================================================================
+FILE: setup.py
+Category: Python | Size: 1.6 KB | Lines: 44
+================================================================================
+from setuptools import setup
+import os
+from glob import glob
+
+package_name = "mlx90640_driver"
+
+setup(
+    name=package_name,
+    version="0.0.0",
+    packages=[package_name],
+    # ------------------------------------------------------------------
+    # Files that should be copied into the install tree
+    # ------------------------------------------------------------------
+    data_files=[
+        # ① package-level resource (already present)
+        ("share/ament_index/resource_index/packages",
+         [f"resource/{package_name}"]),
+
+        # ② executable-level resource  (<<< NEW line)
+        ("share/ament_index/resource_index/ros2_executable",
+         ["resource/thermal_camera_node"]),
+
+        # ③ misc package data
+        (f"share/{package_name}", ["package.xml"]),
+        (os.path.join("share", package_name, "config"), glob("config/*.yaml")),
+        (os.path.join("share", package_name, "launch"), glob("launch/*.py")),
+    ],
+    # ------------------------------------------------------------------
+    install_requires=["setuptools"],
+    zip_safe=True,
+    maintainer="Your Name",
+    maintainer_email="you@example.com",
+    description="ROS 2 driver for MLX90640 thermal camera",
+    license="Apache-2.0",
+    tests_require=["pytest"],
+    # ------------------------------------------------------------------
+    # Entry-point script ROS 2 should expose via `ros2 run`
+    # ------------------------------------------------------------------
+    entry_points={
+        "console_scripts": [
+            "thermal_camera_node = mlx90640_driver.thermal_camera_node:main",
+        ],
+    },
+)
+
+================================================================================
+

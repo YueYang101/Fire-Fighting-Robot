@@ -1,7 +1,7 @@
 ================================================================================
 FULL CODE CONTENT DUMP
 Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot/robot-dashboard
-Time: 2025-06-11 03:11:45
+Time: 2025-06-11 05:46:03
 ================================================================================
 
 DIRECTORY STRUCTURE:
@@ -20,7 +20,7 @@ DIRECTORY STRUCTURE:
 │   │   └── thermal_camera.py (7.7 KB)
 │   ├── __init__.py (285.0 B)
 │   ├── automation.py (30.3 KB)
-│   ├── automation_aiming.py (15.5 KB)
+│   ├── automation_aiming.py (16.9 KB)
 │   ├── automation_v2.py (34.6 KB)
 │   ├── config_manager.py (3.3 KB)
 │   ├── host_backend.py (30.5 KB)
@@ -29,14 +29,14 @@ DIRECTORY STRUCTURE:
 │   ├── static/
 │   │   └── css/
 │   └── templates/
-│       ├── aiming_system.html (56.6 KB)
+│       ├── aiming_system.html (60.5 KB)
 │       ├── dashboard_home.html (27.7 KB)
 │       ├── lidar_visualization.html (47.8 KB)
 │       ├── motor_control.html (23.4 KB)
 │       └── thermal_camera.html (20.0 KB)
 ├── ui/
-├── code_full_content.txt (357.0 KB)
-├── code_scan_summary.txt (1.5 KB)
+├── code_full_content.txt (390.5 KB)
+├── code_scan_summary.txt (1.6 KB)
 ├── code_scanner.py (12.9 KB)
 ├── quick_test_automation.py (23.1 KB)
 ├── requirements.txt (130.0 B)
@@ -46,14 +46,14 @@ DIRECTORY STRUCTURE:
 STATISTICS:
 ----------------------------------------
 Total code files: 26
-Total size: 736.9 KB
-Total lines: 20,957
+Total size: 775.8 KB
+Total lines: 21,991
 
 FILES BY CATEGORY:
 ----------------------------------------
-Documentation: 3 files, 358.6 KB, 10,186 lines
-Python: 18 files, 202.8 KB, 5,667 lines
-Web: 5 files, 175.4 KB, 5,104 lines
+Documentation: 3 files, 392.2 KB, 11,106 lines
+Python: 18 files, 204.2 KB, 5,697 lines
+Web: 5 files, 179.4 KB, 5,188 lines
 
 ================================================================================
 FILE CONTENTS:
@@ -61,7 +61,7 @@ FILE CONTENTS:
 
 ================================================================================
 FILE: code_full_content.txt
-Category: Documentation | Size: 357.0 KB | Lines: 10142
+Category: Documentation | Size: 390.5 KB | Lines: 11061
 ================================================================================
 
 ================================================================================
@@ -69,13 +69,13 @@ Category: Documentation | Size: 357.0 KB | Lines: 10142
 
 ================================================================================
 FILE: code_scan_summary.txt
-Category: Documentation | Size: 1.5 KB | Lines: 37
+Category: Documentation | Size: 1.6 KB | Lines: 38
 ================================================================================
-Code Scan Summary - 2025-06-11 03:11:45
+Code Scan Summary - 2025-06-11 05:46:03
 Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot/robot-dashboard
 Total files: 26
-Total size: 736.9 KB
-Total lines: 20,957
+Total size: 775.8 KB
+Total lines: 21,991
 
 Files by category:
   Documentation: 3 files
@@ -83,12 +83,12 @@ Files by category:
   Web: 5 files
 
 All code files:
-  code_full_content.txt (Documentation, 357.0 KB)
-  code_scan_summary.txt (Documentation, 1.5 KB)
+  code_full_content.txt (Documentation, 390.5 KB)
+  code_scan_summary.txt (Documentation, 1.6 KB)
   requirements.txt (Documentation, 130.0 B)
   backend/__init__.py (Python, 285.0 B)
   backend/automation.py (Python, 30.3 KB)
-  backend/automation_aiming.py (Python, 15.5 KB)
+  backend/automation_aiming.py (Python, 16.9 KB)
   backend/automation_v2.py (Python, 34.6 KB)
   backend/config_manager.py (Python, 3.3 KB)
   backend/host_backend.py (Python, 30.5 KB)
@@ -104,7 +104,7 @@ All code files:
   backend/sensors/thermal_camera.py (Python, 7.7 KB)
   quick_test_automation.py (Python, 23.1 KB)
   run.py (Python, 341.0 B)
-  frontend/templates/aiming_system.html (Web, 56.6 KB)
+  frontend/templates/aiming_system.html (Web, 60.5 KB)
   frontend/templates/dashboard_home.html (Web, 27.7 KB)
   frontend/templates/lidar_visualization.html (Web, 47.8 KB)
   frontend/templates/motor_control.html (Web, 23.4 KB)
@@ -882,7 +882,7 @@ def get_auto_mapper(motor_controller=None, lidar_sensor=None):
 
 ================================================================================
 FILE: backend/automation_aiming.py
-Category: Python | Size: 15.5 KB | Lines: 418
+Category: Python | Size: 16.9 KB | Lines: 448
 ================================================================================
 #!/usr/bin/env python3
 """
@@ -964,6 +964,13 @@ class AutoAiming:
         self.target_stable_count = 0
         self.target_stability_threshold = 3  # Number of consistent detections before moving
         self.last_stable_target = None
+        
+        # Movement tracking for logging
+        self.last_movement_angles = {
+            'pan_change': 0.0,
+            'tilt_change': 0.0,
+            'total_movement': 0.0
+        }
         
         logger.info("Auto aiming system initialized with rate limiting")
     
@@ -1065,6 +1072,9 @@ class AutoAiming:
                             
                             # Check if we should move servos
                             if self._should_move_servos(pan_angle, tilt_angle):
+                                # Calculate movement angles for logging
+                                self._calculate_movement_angles(pan_angle, tilt_angle)
+                                
                                 # Send servo command with rate limiting
                                 self._send_servo_command(pan_angle, tilt_angle)
                     else:
@@ -1134,6 +1144,18 @@ class AutoAiming:
         self.command_cooldown = False
         return True
     
+    def _calculate_movement_angles(self, new_pan: float, new_tilt: float):
+        """Calculate the movement angles for logging"""
+        pan_change = new_pan - self.last_pan
+        tilt_change = new_tilt - self.last_tilt
+        total_movement = math.sqrt(pan_change**2 + tilt_change**2)
+        
+        self.last_movement_angles = {
+            'pan_change': pan_change,
+            'tilt_change': tilt_change,
+            'total_movement': total_movement
+        }
+    
     def _send_servo_command(self, pan_angle: float, tilt_angle: float):
         """Send servo command with rate limiting"""
         current_time = time.time()
@@ -1151,7 +1173,10 @@ class AutoAiming:
             self.last_tilt = tilt_angle
             self.last_command_time = current_time
             
-            logger.info(f"Servo command sent: Pan={pan_angle:.1f}°, Tilt={tilt_angle:.1f}° "
+            # Log with movement angles
+            logger.info(f"Servo command sent: Pan={pan_angle:.1f}° (Δ{self.last_movement_angles['pan_change']:+.1f}°), "
+                       f"Tilt={tilt_angle:.1f}° (Δ{self.last_movement_angles['tilt_change']:+.1f}°) "
+                       f"Total movement: {self.last_movement_angles['total_movement']:.1f}° "
                        f"(Target at {self.current_target['x']}, {self.current_target['y']} "
                        f"@ {self.current_target['temp']:.1f}°C)")
         else:
@@ -1174,12 +1199,13 @@ class AutoAiming:
                 temp = thermal_data[y][x]
                 
                 if temp >= self.target_threshold:
+                    flipped_y = height - 1 - y
                     targets.append({
                         'x': x,
-                        'y': y,
+                        'y': flipped_y,
                         'temp': temp,
                         'grid_x': x,
-                        'grid_y': y
+                        'grid_y': flipped_y
                     })
         
         # Sort by temperature (highest first)
@@ -1197,11 +1223,11 @@ class AutoAiming:
             return targets[0]
         
         # Find leftmost target (minimum x coordinate)
-        leftmost = min(targets, key=lambda t: t['x'])
-        return leftmost
+        hottest = max(targets, key=lambda t: t['temp'])
+        return hottest
     
     def _calculate_servo_angles(self, target: Dict[str, Any], 
-                               frame_width: int, frame_height: int) -> Tuple[float, float]:
+                           frame_width: int, frame_height: int) -> Tuple[float, float]:
         """Calculate servo angles to aim at target"""
         # Get target position as fraction of frame (0-1)
         target_x_norm = target['x'] / (frame_width - 1)
@@ -1213,14 +1239,17 @@ class AutoAiming:
         y_offset = target_y_norm - 0.5
         
         # Convert to degrees based on FOV
-        pan_offset = x_offset * self.thermal_fov_horizontal
-        tilt_offset = y_offset * self.thermal_fov_vertical
+        # TRIPLE THE MOVEMENT COEFFICIENT HERE
+        pan_movement_multiplier = 2.2
+        tilt_movement_multiplier = 1.5
+        pan_offset = x_offset * self.thermal_fov_horizontal * pan_movement_multiplier
+        tilt_offset = y_offset * self.thermal_fov_vertical * tilt_movement_multiplier
         
         # Calculate target servo angles
         target_pan = self.pan_center + pan_offset
         target_tilt = self.tilt_center + tilt_offset
         
-        # Apply limits (±60 degrees from center)
+        # Apply limits (±60 degrees from center) - This ensures it stays in range
         target_pan = max(self.pan_min, min(self.pan_max, target_pan))
         target_tilt = max(self.tilt_min, min(self.tilt_max, target_tilt))
         
@@ -1246,7 +1275,8 @@ class AutoAiming:
                 "min_interval": self.min_command_interval,
                 "in_cooldown": self.command_cooldown,
                 "time_since_last": time.time() - self.last_command_time if self.last_command_time > 0 else None
-            }
+            },
+            "last_movement": self.last_movement_angles
         }
         
         if self.current_target:
@@ -5923,10 +5953,11 @@ if __name__ == '__main__':
 
 ================================================================================
 FILE: frontend/templates/aiming_system.html
-Category: Web | Size: 56.6 KB | Lines: 1631
+Category: Web | Size: 60.5 KB | Lines: 1714
 ================================================================================
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -6107,19 +6138,18 @@ Category: Web | Size: 56.6 KB | Lines: 1631
 
         /* Add tick marks for discrete positions */
         .angle-slider {
-            background-image: linear-gradient(to right, 
-                #444 0%, #444 1px,
-                transparent 1px, transparent 20%,
-                #444 20%, #444 21%,
-                transparent 21%, transparent 40%,
-                #444 40%, #444 41%,
-                transparent 41%, transparent 60%,
-                #444 60%, #444 61%,
-                transparent 61%, transparent 80%,
-                #444 80%, #444 81%,
-                transparent 81%, transparent 99%,
-                #444 99%, #444 100%
-            );
+            background-image: linear-gradient(to right,
+                    #444 0%, #444 1px,
+                    transparent 1px, transparent 20%,
+                    #444 20%, #444 21%,
+                    transparent 21%, transparent 40%,
+                    #444 40%, #444 41%,
+                    transparent 41%, transparent 60%,
+                    #444 60%, #444 61%,
+                    transparent 61%, transparent 80%,
+                    #444 80%, #444 81%,
+                    transparent 81%, transparent 99%,
+                    #444 99%, #444 100%);
             background-size: 100% 100%;
             background-repeat: no-repeat;
         }
@@ -6242,9 +6272,9 @@ Category: Web | Size: 56.6 KB | Lines: 1631
             position: absolute;
             width: 100%;
             height: 100%;
-            background-image: 
-                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
             background-size: 20px 20px;
         }
 
@@ -6438,7 +6468,8 @@ Category: Web | Size: 56.6 KB | Lines: 1631
             color: #ff6b6b;
         }
 
-        .speed-slider, .duration-slider {
+        .speed-slider,
+        .duration-slider {
             width: 100%;
             height: 8px;
             -webkit-appearance: none;
@@ -6577,9 +6608,17 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         }
 
         @keyframes pulse {
-            0% { box-shadow: 0 0 10px rgba(255, 107, 107, 0.3); }
-            50% { box-shadow: 0 0 20px rgba(255, 107, 107, 0.5); }
-            100% { box-shadow: 0 0 10px rgba(255, 107, 107, 0.3); }
+            0% {
+                box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+            }
+
+            100% {
+                box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+            }
         }
 
         .auto-aim-info {
@@ -6694,15 +6733,15 @@ Category: Web | Size: 56.6 KB | Lines: 1631
             .controls-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .actuator-controls {
                 grid-template-columns: 1fr;
             }
-            
+
             .speed-duration-controls {
                 grid-template-columns: 1fr;
             }
-            
+
             .preset-buttons {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -6712,7 +6751,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
             .header h1 {
                 font-size: 1.8em;
             }
-            
+
             .servo-visual {
                 width: 250px;
                 height: 250px;
@@ -6721,6 +6760,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
     </style>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
+
 <body>
     <div class="header">
         <h1>Aiming System Control Panel</h1>
@@ -6743,7 +6783,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
     <div class="main-container">
         <!-- Servo Control Section -->
         <h2 class="section-title">Servo Aiming Control</h2>
-        
+
         <div class="controls-grid">
             <!-- Pan Control -->
             <div class="servo-card">
@@ -6751,13 +6791,15 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                     <h2 class="servo-title">Pan Control (Horizontal)</h2>
                     <span class="servo-status" id="panStatus">IDLE</span>
                 </div>
+                <div class="movement-info" id="panMovement"
+                    style="color: #00ff88; font-size: 0.9em; margin-top: 10px; text-align: center; min-height: 20px;">
+                </div>
                 <div class="angle-control">
                     <div class="angle-label">
                         <span>Angle Control</span>
                         <span class="angle-value" id="panValue">135°</span>
                     </div>
-                    <input type="range" class="angle-slider" id="panSlider" 
-                           min="75" max="195" value="135" step="30">
+                    <input type="range" class="angle-slider" id="panSlider" min="75" max="195" value="135" step="30">
                     <div class="angle-marks">
                         <span class="angle-mark">75°<br>Left</span>
                         <span class="angle-mark">105°</span>
@@ -6774,13 +6816,15 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                     <h2 class="servo-title">Tilt Control (Vertical)</h2>
                     <span class="servo-status" id="tiltStatus">IDLE</span>
                 </div>
+                <div class="movement-info" id="tiltMovement"
+                    style="color: #00ff88; font-size: 0.9em; margin-top: 10px; text-align: center; min-height: 20px;">
+                </div>
                 <div class="angle-control">
                     <div class="angle-label">
                         <span>Angle Control</span>
                         <span class="angle-value" id="tiltValue">135°</span>
                     </div>
-                    <input type="range" class="angle-slider" id="tiltSlider" 
-                           min="75" max="195" value="135" step="30">
+                    <input type="range" class="angle-slider" id="tiltSlider" min="75" max="195" value="135" step="30">
                     <div class="angle-marks">
                         <span class="angle-mark">75°<br>Down</span>
                         <span class="angle-mark">105°</span>
@@ -6823,7 +6867,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         <!-- Auto Aiming Section -->
         <div class="auto-aim-section">
             <h2 class="section-title">Automatic Heat Targeting System</h2>
-            
+
             <div class="auto-aim-card">
                 <div class="auto-aim-header">
                     <h3 class="auto-aim-title">Thermal Auto-Aim Control</h3>
@@ -6832,7 +6876,8 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                         <button class="auto-aim-btn enable" id="enableAutoAimBtn" onclick="toggleAutoAim(true)">
                             Enable Auto-Aim
                         </button>
-                        <button class="auto-aim-btn disable" id="disableAutoAimBtn" onclick="toggleAutoAim(false)" style="display: none;">
+                        <button class="auto-aim-btn disable" id="disableAutoAimBtn" onclick="toggleAutoAim(false)"
+                            style="display: none;">
                             Disable Auto-Aim
                         </button>
                     </div>
@@ -6862,8 +6907,8 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                         <span>Temperature Threshold</span>
                         <span class="threshold-value" id="thresholdValue">100°C</span>
                     </div>
-                    <input type="range" class="threshold-slider" id="thresholdSlider" 
-                           min="30" max="300" value="100" step="10">
+                    <input type="range" class="threshold-slider" id="thresholdSlider" min="30" max="300" value="100"
+                        step="10">
                     <div style="display: flex; justify-content: space-between; margin-top: 5px;">
                         <span style="color: #666; font-size: 0.8em;">30°C</span>
                         <span style="color: #666; font-size: 0.8em;">300°C</span>
@@ -6871,7 +6916,8 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                 </div>
 
                 <p style="color: #888; font-size: 0.9em; margin-top: 20px; text-align: center;">
-                    <strong>Note:</strong> Auto-aim will target the leftmost heat source above the threshold temperature.
+                    <strong>Note:</strong> Auto-aim will target the leftmost heat source above the threshold
+                    temperature.
                     Servo movement is limited to ±60° from center position for safety.
                 </p>
             </div>
@@ -6880,7 +6926,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         <!-- Actuator Control Section -->
         <div class="actuator-section">
             <h2 class="section-title">Fire Extinguisher Trigger Control</h2>
-            
+
             <div class="actuator-card">
                 <div class="actuator-header">
                     <h3 class="actuator-title">Linear Actuator Control</h3>
@@ -6910,8 +6956,8 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                             <span>Speed Control</span>
                             <span class="control-value" id="speedValue">100%</span>
                         </div>
-                        <input type="range" class="speed-slider" id="speedSlider" 
-                               min="0" max="100" value="100" step="25">
+                        <input type="range" class="speed-slider" id="speedSlider" min="0" max="100" value="100"
+                            step="25">
                         <div class="speed-marks">
                             <span style="float: left; color: #666; font-size: 0.8em;">0%</span>
                             <span style="float: right; color: #666; font-size: 0.8em;">100%</span>
@@ -6923,8 +6969,8 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                             <span>Duration (0 = Continuous)</span>
                             <span class="control-value" id="durationValue">0s</span>
                         </div>
-                        <input type="range" class="duration-slider" id="durationSlider" 
-                               min="0" max="10" value="0" step="0.5">
+                        <input type="range" class="duration-slider" id="durationSlider" min="0" max="10" value="0"
+                            step="0.5">
                         <div class="speed-marks">
                             <span style="float: left; color: #666; font-size: 0.8em;">0s</span>
                             <span style="float: right; color: #666; font-size: 0.8em;">10s</span>
@@ -6991,7 +7037,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
             const timestamp = new Date().toLocaleTimeString();
             entry.textContent = `[${timestamp}] ${message}`;
             logContainer.insertBefore(entry, logContainer.firstChild);
-            
+
             // Keep only last 10 entries
             while (logContainer.children.length > 10) {
                 logContainer.removeChild(logContainer.lastChild);
@@ -7002,45 +7048,45 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         function connectWebSocket() {
             socket = io();
 
-            socket.on('connect', function() {
+            socket.on('connect', function () {
                 console.log('Socket.IO connected');
                 isConnected = true;
-                
+
                 // Check both connections
                 checkActuatorConnection().then(actuatorConnected => {
                     updateConnectionStatus(true, actuatorConnected);
                 });
-                
+
                 addLog('Connected to servo controller', 'success');
-                
+
                 // Request initial servo state
                 socket.emit('request_servo_state');
             });
 
-            socket.on('servo_state', function(data) {
+            socket.on('servo_state', function (data) {
                 updateServoState(data);
             });
 
-            socket.on('servo_response', function(data) {
+            socket.on('servo_response', function (data) {
                 console.log('Servo response:', data);
                 if (data.result && !data.result.success) {
                     addLog(`Error: ${data.result.error}`, 'error');
                 }
             });
 
-            socket.on('servo_error', function(data) {
+            socket.on('servo_error', function (data) {
                 console.error('Servo error:', data);
                 addLog(`Error: ${data.error}`, 'error');
             });
 
-            socket.on('disconnect', function() {
+            socket.on('disconnect', function () {
                 console.log('Socket.IO disconnected');
                 isConnected = false;
                 updateConnectionStatus(false, false);
                 addLog('Connection lost - Reconnecting...', 'error');
             });
 
-            socket.on('connect_error', function(error) {
+            socket.on('connect_error', function (error) {
                 console.error('Socket.IO connection error:', error);
                 updateConnectionStatus(false, false);
             });
@@ -7052,7 +7098,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
             const servoText = document.getElementById('servoStatusText');
             const actuatorIndicator = document.getElementById('actuatorConnectionStatus');
             const actuatorText = document.getElementById('actuatorStatusText');
-            
+
             if (servoConnected) {
                 servoIndicator.classList.add('connected');
                 servoText.textContent = 'Connected';
@@ -7060,7 +7106,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                 servoIndicator.classList.remove('connected');
                 servoText.textContent = 'Disconnected';
             }
-            
+
             if (actuatorConnected) {
                 actuatorIndicator.classList.add('connected');
                 actuatorText.textContent = 'Connected';
@@ -7069,13 +7115,13 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                 actuatorText.textContent = 'Disconnected';
             }
         }
-        
+
         // Check actuator connection status
         async function checkActuatorConnection() {
             try {
                 const response = await fetch('/api/actuator/status');
                 const data = await response.json();
-                
+
                 if (data.success && data.state) {
                     return data.state.connected;
                 }
@@ -7089,19 +7135,19 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         // Update servo state from WebSocket data
         function updateServoState(data) {
             isUpdatingFromServer = true;
-            
+
             // Store current values
             currentPanValue = Math.round(data.pan_angle);
             currentTiltValue = Math.round(data.tilt_angle);
-            
+
             // Update displays
             document.getElementById('panValue').textContent = `${currentPanValue}°`;
             document.getElementById('tiltValue').textContent = `${currentTiltValue}°`;
-            
+
             // Update status
             const panStatus = document.getElementById('panStatus');
             const tiltStatus = document.getElementById('tiltStatus');
-            
+
             if (data.pan_moving) {
                 panStatus.textContent = 'MOVING';
                 panStatus.classList.add('active');
@@ -7109,7 +7155,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                 panStatus.textContent = 'IDLE';
                 panStatus.classList.remove('active');
             }
-            
+
             if (data.tilt_moving) {
                 tiltStatus.textContent = 'MOVING';
                 tiltStatus.classList.add('active');
@@ -7117,24 +7163,24 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                 tiltStatus.textContent = 'IDLE';
                 tiltStatus.classList.remove('active');
             }
-            
+
             // Update sliders only if not being manipulated by user
             const panSlider = document.getElementById('panSlider');
             const tiltSlider = document.getElementById('tiltSlider');
-            
+
             if (!panSlider.matches(':active') && !panSlider.matches(':focus')) {
                 panSlider.value = currentPanValue;
                 updateSliderBackground('panSlider', currentPanValue);
             }
-            
+
             if (!tiltSlider.matches(':active') && !tiltSlider.matches(':focus')) {
                 tiltSlider.value = currentTiltValue;
                 updateSliderBackground('tiltSlider', currentTiltValue);
             }
-            
+
             // Update visualization
             updateCrosshair(currentPanValue, currentTiltValue);
-            
+
             isUpdatingFromServer = false;
         }
 
@@ -7150,11 +7196,12 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         // Update crosshair position
         function updateCrosshair(pan, tilt) {
             const crosshair = document.getElementById('crosshair');
-            
+
             // Map angles to percentages (75-195 degrees to 0-100%)
-            const panPercent = ((pan - 75) / 120) * 100;
-            const tiltPercent = 100 - ((tilt - 75) / 120) * 100; // Invert for visual
-            
+            // INVERT the pan percentage for visualization
+            const panPercent = 100 - ((pan - 75) / 120) * 100;  // Changed: added "100 -" to invert
+            const tiltPercent = 100 - ((tilt - 75) / 120) * 100; // Tilt is already inverted
+
             crosshair.style.left = `${panPercent}%`;
             crosshair.style.top = `${tiltPercent}%`;
         }
@@ -7162,14 +7209,14 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         // Send servo command
         function sendServoCommand(pan, tilt) {
             if (!isConnected || !socket || isUpdatingFromServer) return;
-            
+
             socket.emit('servo_command', {
                 type: 'servo_command',
                 action: 'move',
                 pan_angle: parseFloat(pan),
                 tilt_angle: parseFloat(tilt)
             });
-            
+
             addLog(`Command sent: Pan ${pan}°, Tilt ${tilt}°`, 'success');
         }
 
@@ -7192,12 +7239,12 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                 const endpoint = enable ? '/api/aiming/auto/enable' : '/api/aiming/auto/disable';
                 const response = await fetch(endpoint, { method: 'POST' });
                 const data = await response.json();
-                
+
                 if (data.success) {
                     autoAimEnabled = enable;
                     updateAutoAimUI(enable);
                     addLog(enable ? 'Auto-aim enabled' : 'Auto-aim disabled', 'success');
-                    
+
                     if (enable) {
                         // Start status polling
                         startAutoAimStatusPolling();
@@ -7219,7 +7266,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
             const status = document.getElementById('autoAimStatus');
             const enableBtn = document.getElementById('enableAutoAimBtn');
             const disableBtn = document.getElementById('disableAutoAimBtn');
-            
+
             if (enabled) {
                 status.textContent = 'ACTIVE';
                 status.classList.add('active');
@@ -7237,10 +7284,10 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         function startAutoAimStatusPolling() {
             // Clear any existing interval
             stopAutoAimStatusPolling();
-            
+
             // Update immediately
             updateAutoAimStatus();
-            
+
             // Poll every 500ms
             autoAimStatusInterval = setInterval(updateAutoAimStatus, 500);
         }
@@ -7258,28 +7305,93 @@ Category: Web | Size: 56.6 KB | Lines: 1631
             try {
                 const response = await fetch('/api/aiming/auto/status');
                 const data = await response.json();
-                
+
                 if (data.success && data.status) {
                     const status = data.status;
-                    
+
                     // Update target info
                     if (status.current_target) {
                         document.getElementById('currentTarget').textContent = 'Locked';
                         document.getElementById('targetTemp').textContent = `${status.current_target.temperature.toFixed(1)}°C`;
-                        document.getElementById('targetPosition').textContent = 
+                        document.getElementById('targetPosition').textContent =
                             `(${status.current_target.x}, ${status.current_target.y})`;
                     } else {
                         document.getElementById('currentTarget').textContent = 'Searching...';
                         document.getElementById('targetTemp').textContent = '-°C';
                         document.getElementById('targetPosition').textContent = '-';
                     }
-                    
+
                     // Update last detection time
                     if (status.last_target_time) {
                         const time = new Date(status.last_target_time);
                         document.getElementById('lastDetection').textContent = time.toLocaleTimeString();
                     }
-                    
+
+                    // Update movement displays and log movement
+                    if (status.last_movement && status.current_target) {
+                        const movement = status.last_movement;
+
+                        // Update pan movement display
+                        const panMovementEl = document.getElementById('panMovement');
+                        if (movement.pan_change !== 0) {
+                            const panStr = movement.pan_change >= 0 ? `+${movement.pan_change.toFixed(1)}` : movement.pan_change.toFixed(1);
+                            panMovementEl.textContent = `Movement: ${panStr}°`;
+                            panMovementEl.style.color = Math.abs(movement.pan_change) > 5 ? '#ff6b6b' : '#00ff88';
+                        } else {
+                            panMovementEl.textContent = '';
+                        }
+
+                        // Update tilt movement display
+                        const tiltMovementEl = document.getElementById('tiltMovement');
+                        if (movement.tilt_change !== 0) {
+                            const tiltStr = movement.tilt_change >= 0 ? `+${movement.tilt_change.toFixed(1)}` : movement.tilt_change.toFixed(1);
+                            tiltMovementEl.textContent = `Movement: ${tiltStr}°`;
+                            tiltMovementEl.style.color = Math.abs(movement.tilt_change) > 5 ? '#ff6b6b' : '#00ff88';
+                        } else {
+                            tiltMovementEl.textContent = '';
+                        }
+
+                        // Log significant movements
+                        if (movement.total_movement > 3.0) { // Only log if movement > 3 degrees
+                            const panStr = movement.pan_change >= 0 ? `+${movement.pan_change.toFixed(1)}` : movement.pan_change.toFixed(1);
+                            const tiltStr = movement.tilt_change >= 0 ? `+${movement.tilt_change.toFixed(1)}` : movement.tilt_change.toFixed(1);
+
+                            addLog(`Target tracked: Pan Δ${panStr}°, Tilt Δ${tiltStr}° (Total: ${movement.total_movement.toFixed(1)}°) @ ${status.current_target.temperature.toFixed(1)}°C`, 'success');
+                        }
+                    } else {
+                        // Clear movement displays when no target
+                        document.getElementById('panMovement').textContent = '';
+                        document.getElementById('tiltMovement').textContent = '';
+                    }
+
+                    // Update servo angle displays when auto-aim is active
+                    if (status.enabled && status.servo_position) {
+                        // Update the angle value displays
+                        document.getElementById('panValue').textContent = `${Math.round(status.servo_position.pan)}°`;
+                        document.getElementById('tiltValue').textContent = `${Math.round(status.servo_position.tilt)}°`;
+
+                        // Update the sliders (if not being manually controlled)
+                        const panSlider = document.getElementById('panSlider');
+                        const tiltSlider = document.getElementById('tiltSlider');
+
+                        if (!panSlider.matches(':active') && !panSlider.matches(':focus')) {
+                            panSlider.value = Math.round(status.servo_position.pan);
+                            updateSliderBackground('panSlider', Math.round(status.servo_position.pan));
+                        }
+
+                        if (!tiltSlider.matches(':active') && !tiltSlider.matches(':focus')) {
+                            tiltSlider.value = Math.round(status.servo_position.tilt);
+                            updateSliderBackground('tiltSlider', Math.round(status.servo_position.tilt));
+                        }
+
+                        // Update visualization
+                        updateCrosshair(status.servo_position.pan, status.servo_position.tilt);
+
+                        // Store current values
+                        currentPanValue = Math.round(status.servo_position.pan);
+                        currentTiltValue = Math.round(status.servo_position.tilt);
+                    }
+
                     // If not enabled but UI shows enabled, update UI
                     if (!status.enabled && autoAimEnabled) {
                         autoAimEnabled = false;
@@ -7304,7 +7416,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         function updateThresholdDisplay() {
             const value = document.getElementById('thresholdSlider').value;
             document.getElementById('thresholdValue').textContent = `${value}°C`;
-            
+
             // Update slider background
             const slider = document.getElementById('thresholdSlider');
             const percentage = (value - 30) / (300 - 30);
@@ -7319,9 +7431,9 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ threshold: parseFloat(threshold) })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     addLog(`Temperature threshold set to ${threshold}°C`, 'success');
                 } else {
@@ -7336,7 +7448,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         async function actuatorControl(action) {
             const speed = parseInt(document.getElementById('speedSlider').value);
             const duration = parseFloat(document.getElementById('durationSlider').value);
-            
+
             try {
                 const response = await fetch('/api/actuator/control', {
                     method: 'POST',
@@ -7349,13 +7461,13 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                         duration: duration
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     updateActuatorStatus(action);
                     addLog(data.message, 'success');
-                    
+
                     // Check actuator connection after command
                     checkActuatorConnection().then(connected => {
                         const servoConnected = isConnected;
@@ -7377,7 +7489,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
             document.getElementById('durationSlider').value = duration;
             updateSpeedDisplay();
             updateDurationDisplay();
-            
+
             // Send command
             try {
                 const response = await fetch('/api/actuator/control', {
@@ -7391,9 +7503,9 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                         duration: duration
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     updateActuatorStatus(action);
                     addLog(data.message, 'success');
@@ -7408,11 +7520,11 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         function updateActuatorStatus(action) {
             const status = document.getElementById('actuatorStatus');
             actuatorState = action;
-            
+
             // Remove all status classes
             status.classList.remove('extending', 'retracting');
-            
-            switch(action) {
+
+            switch (action) {
                 case 'extend':
                     status.textContent = 'EXTENDING';
                     status.classList.add('extending');
@@ -7431,7 +7543,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         function updateSpeedDisplay() {
             const value = document.getElementById('speedSlider').value;
             document.getElementById('speedValue').textContent = `${value}%`;
-            
+
             // Update slider background
             const slider = document.getElementById('speedSlider');
             const percentage = value / 100;
@@ -7441,7 +7553,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         function updateDurationDisplay() {
             const value = document.getElementById('durationSlider').value;
             document.getElementById('durationValue').textContent = value == 0 ? 'Continuous' : `${value}s`;
-            
+
             // Update slider background
             const slider = document.getElementById('durationSlider');
             const percentage = value / 10;
@@ -7453,15 +7565,15 @@ Category: Web | Size: 56.6 KB | Lines: 1631
             try {
                 const response = await fetch('/api/aiming/auto/status');
                 const data = await response.json();
-                
+
                 if (data.success && data.status) {
                     autoAimEnabled = data.status.enabled;
                     updateAutoAimUI(autoAimEnabled);
-                    
+
                     if (autoAimEnabled) {
                         startAutoAimStatusPolling();
                     }
-                    
+
                     // Set threshold slider to current value
                     document.getElementById('thresholdSlider').value = data.status.target_threshold;
                     updateThresholdDisplay();
@@ -7472,28 +7584,28 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         }
 
         // Slider event handlers - keep track of values independently
-        document.getElementById('panSlider').addEventListener('input', function(e) {
+        document.getElementById('panSlider').addEventListener('input', function (e) {
             if (isUpdatingFromServer) return;
             const value = parseInt(e.target.value);
             document.getElementById('panValue').textContent = `${value}°`;
             updateSliderBackground('panSlider', value);
         });
 
-        document.getElementById('panSlider').addEventListener('change', function(e) {
+        document.getElementById('panSlider').addEventListener('change', function (e) {
             if (isUpdatingFromServer) return;
             const panValue = parseInt(e.target.value);
             // Use the current tilt value from state, not from the slider
             sendServoCommand(panValue, currentTiltValue);
         });
 
-        document.getElementById('tiltSlider').addEventListener('input', function(e) {
+        document.getElementById('tiltSlider').addEventListener('input', function (e) {
             if (isUpdatingFromServer) return;
             const value = parseInt(e.target.value);
             document.getElementById('tiltValue').textContent = `${value}°`;
             updateSliderBackground('tiltSlider', value);
         });
 
-        document.getElementById('tiltSlider').addEventListener('change', function(e) {
+        document.getElementById('tiltSlider').addEventListener('change', function (e) {
             if (isUpdatingFromServer) return;
             const tiltValue = parseInt(e.target.value);
             // Use the current pan value from state, not from the slider
@@ -7506,12 +7618,12 @@ Category: Web | Size: 56.6 KB | Lines: 1631
 
         // Initialize threshold slider
         document.getElementById('thresholdSlider').addEventListener('input', updateThresholdDisplay);
-        document.getElementById('thresholdSlider').addEventListener('change', function(e) {
+        document.getElementById('thresholdSlider').addEventListener('change', function (e) {
             setThreshold(e.target.value);
         });
 
         // Initialize on page load
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             connectWebSocket();
             updateSliderBackground('panSlider', 135);
             updateSliderBackground('tiltSlider', 135);
@@ -7519,13 +7631,13 @@ Category: Web | Size: 56.6 KB | Lines: 1631
             updateDurationDisplay();
             updateThresholdDisplay();
             addLog('Aiming system initialized', 'success');
-            
+
             // Request initial state after a short delay
             setTimeout(() => {
                 if (socket && isConnected) {
                     socket.emit('request_servo_state');
                 }
-                
+
                 // Check actuator connection
                 checkActuatorConnection().then(actuatorConnected => {
                     updateConnectionStatus(isConnected, actuatorConnected);
@@ -7533,11 +7645,11 @@ Category: Web | Size: 56.6 KB | Lines: 1631
                         addLog('Actuator service not available - Check if actuator_controller is running', 'error');
                     }
                 });
-                
+
                 // Check auto-aim status
                 checkAutoAimStatus();
             }, 500);
-            
+
             // Periodically check actuator connection
             setInterval(() => {
                 checkActuatorConnection().then(actuatorConnected => {
@@ -7547,7 +7659,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         });
 
         // Cleanup on page unload
-        window.addEventListener('beforeunload', function() {
+        window.addEventListener('beforeunload', function () {
             stopAutoAimStatusPolling();
             if (socket) {
                 socket.disconnect();
@@ -7555,6 +7667,7 @@ Category: Web | Size: 56.6 KB | Lines: 1631
         });
     </script>
 </body>
+
 </html>
 ================================================================================
 
@@ -10449,7 +10562,7 @@ Category: Web | Size: 23.4 KB | Lines: 704
 
 ================================================================================
 FILE: frontend/templates/thermal_camera.html
-Category: Web | Size: 20.0 KB | Lines: 606
+Category: Web | Size: 20.0 KB | Lines: 607
 ================================================================================
 <!DOCTYPE html>
 <html lang="en">
@@ -10913,7 +11026,8 @@ Category: Web | Size: 20.0 KB | Lines: 606
             // Draw each temperature pixel
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
-                    const temp = thermalData[y][x];
+                    const flippedY = height - 1 - y
+                    const temp = thermalData[flippedY][x];
                     const color = temperatureToColor(temp, minTemp, maxTemp);
                     
                     ctx.fillStyle = color;

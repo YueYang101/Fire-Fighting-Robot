@@ -1,0 +1,17 @@
+Code Scan Summary - 2025-06-11 05:47:20
+Directory: /Users/yang/Library/CloudStorage/OneDrive-Personal/UCL/Year 4 UCL/MECH0073/GitHub_Repositories/Fire-fighting-Robot/mlx90640_driver
+Total files: 6
+Total size: 10.1 KB
+Total lines: 297
+
+Files by category:
+  Config: 2 files
+  Python: 4 files
+
+All code files:
+  config/thermal_camera.yaml (Config, 360.0 B)
+  package.xml (Config, 736.0 B)
+  launch/thermal_camera_launch.py (Python, 1.2 KB)
+  mlx90640_driver/__init__.py (Python, 0.0 B)
+  mlx90640_driver/thermal_camera_node.py (Python, 6.3 KB)
+  setup.py (Python, 1.6 KB)
