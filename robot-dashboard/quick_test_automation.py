@@ -350,8 +350,13 @@ class SmartExplorer:
         stuck_count = 0  # Track if we're stuck
         self.exploring = True
         
+        # Starting position for return home
+        start_x, start_y = self.x, self.y
+        
         # Movement tracking
         last_move_time = time.time()
+        last_position_check = time.time()
+        last_check_x, last_check_y = self.x, self.y
         
         while self.running and self.exploring and (time.time() - start_time) < duration:
             current_time = time.time()
@@ -369,12 +374,41 @@ class SmartExplorer:
                 self.theta += 0.5 * dt  # ~0.5 rad/s (slower turning)
             elif state == "turn_right":
                 self.theta -= 0.5 * dt
+            elif state == "return_home":
+                # Position updates handled in the state logic
+                pass
             
             # Normalize angle
             self.theta = math.atan2(math.sin(self.theta), math.cos(self.theta))
             
             # Check grid map for obstacles
             grid_obstacle, grid_dist = self.grid_mapper.is_obstacle_ahead()
+            
+            # Check if stuck (every 10 seconds)
+            if current_time - last_position_check > 10.0:
+                distance_moved = math.sqrt((self.x - last_check_x)**2 + (self.y - last_check_y)**2)
+                total_distance_from_start = math.sqrt((self.x - start_x)**2 + (self.y - start_y)**2)
+                
+                if distance_moved < 300:  # Less than 30cm in 10 seconds
+                    logger.warning(f"Stuck! Only moved {int(distance_moved)}mm in 10s")
+                    stuck_count += 2
+                    
+                    # If very stuck and far from start, try to return
+                    if stuck_count > 4 and total_distance_from_start > 500:
+                        logger.warning("Very stuck! Attempting to return to start...")
+                        state = "return_home"
+                        turn_start = current_time
+                
+                last_check_x, last_check_y = self.x, self.y
+                last_position_check = current_time
+            
+            # Check minimum progress for short explorations
+            if duration <= 20 and (current_time - start_time) > 15:
+                total_distance = math.sqrt((self.x - start_x)**2 + (self.y - start_y)**2)
+                if total_distance < 1000:  # Less than 1 meter
+                    logger.warning(f"Poor progress! Only {int(total_distance)}mm from start")
+                    state = "return_home"
+                    turn_start = current_time
             
             # Status logging
             if current_time - last_log_time > 3.0:
@@ -446,6 +480,47 @@ class SmartExplorer:
                     state = "forward"
                     logger.info("Turn complete, checking path...")
             
+            elif state == "return_home":
+                # Calculate angle to home
+                dx = start_x - self.x
+                dy = start_y - self.y
+                distance_to_home = math.sqrt(dx**2 + dy**2)
+                
+                if distance_to_home < 200:  # Close enough to start
+                    logger.info("Returned to starting area!")
+                    self.stop_motors()
+                    state = "forward"
+                    stuck_count = 0
+                    turn_count = 0
+                else:
+                    # Calculate desired angle
+                    desired_angle = math.atan2(dy, dx)
+                    angle_diff = desired_angle - self.theta
+                    
+                    # Normalize angle difference to [-pi, pi]
+                    while angle_diff > math.pi:
+                        angle_diff -= 2 * math.pi
+                    while angle_diff < -math.pi:
+                        angle_diff += 2 * math.pi
+                    
+                    # Turn towards home or move forward
+                    if abs(angle_diff) > 0.3:  # Need to turn (about 17 degrees)
+                        if angle_diff > 0:
+                            self.set_motors(TURN_SPEED, 0)  # Turn left
+                        else:
+                            self.set_motors(0, TURN_SPEED)  # Turn right
+                    else:
+                        # Check for obstacles while returning
+                        if not front_clear and min_front_dist < SAFE_DISTANCE:
+                            # Obstacle while returning, try to go around
+                            if random.random() < 0.5:
+                                self.set_motors(TURN_SPEED, 0)
+                            else:
+                                self.set_motors(0, TURN_SPEED)
+                        else:
+                            # Move toward home
+                            self.set_motors(FORWARD_SPEED, FORWARD_SPEED)
+            
             time.sleep(0.05)  # 20Hz control loop
         
         # Cleanup
@@ -454,7 +529,13 @@ class SmartExplorer:
         self.lidar_sensor.unsubscribe()
         
         logger.info(f"\n✓ Exploration completed!")
-        logger.info(f"Distance traveled: ~{int(math.sqrt(self.x**2 + self.y**2))}mm")
+        logger.info(f"Distance traveled: ~{int(math.sqrt(self.x**2 + self.y**2))}mm from start")
+        logger.info(f"Final position: ({int(self.x)}, {int(self.y)})mm")
+        
+        # Check if we should warn about poor exploration
+        total_distance = math.sqrt((self.x - start_x)**2 + (self.y - start_y)**2)
+        if total_distance < 1000 and duration >= 20:
+            logger.warning("Limited exploration area covered. Consider trying a different starting position.")
     
     def stop(self):
         """Clean shutdown"""
