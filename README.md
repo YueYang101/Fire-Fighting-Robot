@@ -38,13 +38,13 @@ An autonomous robotic system designed to detect and respond to fire emergencies.
 <tr>
 <td width="50%">
   
-  https://github.com/YueYang101/Fire-Fighting-Robot/assets/USER_ID/VIDEO_ID_1
+  ![Dashboard Control](docs/videos/aim_dashboard.gif)
   
   *Dashboard-controlled aiming system*
 </td>
 <td width="50%">
   
-  https://github.com/YueYang101/Fire-Fighting-Robot/assets/USER_ID/VIDEO_ID_2
+  ![Hot Water Test](docs/videos/aim_hot_water.gif)
   
   *Hot water fire suppression test*
 </td>
@@ -56,13 +56,13 @@ An autonomous robotic system designed to detect and respond to fire emergencies.
 <tr>
 <td width="50%">
   
-  https://github.com/YueYang101/Fire-Fighting-Robot/assets/USER_ID/VIDEO_ID_3
+  ![Body Calibration](docs/videos/body_calibration.gif)
   
   *Robot body calibration process*
 </td>
 <td width="50%">
   
-  https://github.com/YueYang101/Fire-Fighting-Robot/assets/USER_ID/VIDEO_ID_4
+  ![Obstacle Avoidance](docs/videos/obstacles_avoidance.gif)
   
   *Autonomous obstacle avoidance*
 </td>
@@ -74,13 +74,13 @@ An autonomous robotic system designed to detect and respond to fire emergencies.
 <tr>
 <td width="50%">
   
-  https://github.com/YueYang101/Fire-Fighting-Robot/assets/USER_ID/VIDEO_ID_5
+  ![Above View](docs/videos/above_view_fire.gif)
   
   *Top-down fire detection view*
 </td>
 <td width="50%">
   
-  https://github.com/YueYang101/Fire-Fighting-Robot/assets/USER_ID/VIDEO_ID_6
+  ![Front View](docs/videos/front_view_fire.gif)
   
   *Front-facing fire detection*
 </td>
