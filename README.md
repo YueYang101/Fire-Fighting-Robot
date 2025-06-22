@@ -9,7 +9,7 @@
   
   <h3>Autonomous Fire Detection and Suppression Robot</h3>
   
-  <img src="docs/videos/robot-photo.jpg" alt="Fire Fighting Robot" width="600">
+  <img src="docs/videos/robot_photo.jpg" alt="Fire Fighting Robot" width="600">
   
 </div>
 
@@ -32,19 +32,61 @@ An autonomous robotic system designed to detect and respond to fire emergencies.
 ## 🎬 Demo Videos
 
 <div align="center">
-  
-  ### Fire Detection and Navigation Demo
-  
-  https://github.com/YueYang101/Fire-Fighting-Robot/assets/YOUR_USER_ID/YOUR_VIDEO_1.mp4
-  
-  *Robot detecting and navigating to a fire source*
-  
-  ### System Integration Test
-  
-  https://github.com/YueYang101/Fire-Fighting-Robot/assets/YOUR_USER_ID/YOUR_VIDEO_2.mp4
-  
-  *Complete system functionality demonstration*
-  
+
+### Dashboard Control & Fire Suppression
+<table>
+<tr>
+<td width="50%">
+  <video src="docs/videos/aim_dashboard.mp4" width="100%" autoplay loop muted>
+    Your browser does not support the video tag.
+  </video>
+  <p><i>Dashboard-controlled aiming system</i></p>
+</td>
+<td width="50%">
+  <video src="docs/videos/aim_hot_water.mp4" width="100%" autoplay loop muted>
+    Your browser does not support the video tag.
+  </video>
+  <p><i>Hot water fire suppression test</i></p>
+</td>
+</tr>
+</table>
+
+### System Calibration & Navigation
+<table>
+<tr>
+<td width="50%">
+  <video src="docs/videos/body_calibration.mp4" width="100%" autoplay loop muted>
+    Your browser does not support the video tag.
+  </video>
+  <p><i>Robot body calibration process</i></p>
+</td>
+<td width="50%">
+  <video src="docs/videos/obstacles_avoidance.mp4" width="100%" autoplay loop muted>
+    Your browser does not support the video tag.
+  </video>
+  <p><i>Autonomous obstacle avoidance</i></p>
+</td>
+</tr>
+</table>
+
+### Fire Detection Views
+<table>
+<tr>
+<td width="50%">
+  <video src="docs/videos/above_view_fire.mp4" width="100%" autoplay loop muted>
+    Your browser does not support the video tag.
+  </video>
+  <p><i>Top-down fire detection view</i></p>
+</td>
+<td width="50%">
+  <video src="docs/videos/front_view_fire.mp4" width="100%" autoplay loop muted>
+    Your browser does not support the video tag.
+  </video>
+  <p><i>Front-facing fire detection</i></p>
+</td>
+</tr>
+</table>
+
 </div>
 
 ---
