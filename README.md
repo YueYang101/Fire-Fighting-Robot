@@ -9,7 +9,7 @@
   
   <h3>Autonomous Fire Detection and Suppression Robot</h3>
   
-  <img src="https://github.com/YueYang101/Fire-Fighting-Robot/assets/your-robot-image.jpg" alt="Fire Fighting Robot" width="600">
+  <img src="docs/videos/robot-photo.jpg" alt="Fire Fighting Robot" width="600">
   
 </div>
 
@@ -35,15 +35,15 @@ An autonomous robotic system designed to detect and respond to fire emergencies.
   
   ### Fire Detection and Navigation Demo
   
-  [![Fire Detection Demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
+  https://github.com/YueYang101/Fire-Fighting-Robot/assets/YOUR_USER_ID/YOUR_VIDEO_1.mp4
   
-  *Click to watch the robot detecting and navigating to a fire source*
+  *Robot detecting and navigating to a fire source*
   
   ### System Integration Test
   
-  [![System Test](https://img.youtube.com/vi/YOUR_VIDEO_ID_2/0.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID_2)
+  https://github.com/YueYang101/Fire-Fighting-Robot/assets/YOUR_USER_ID/YOUR_VIDEO_2.mp4
   
-  *Click to watch complete system functionality demonstration*
+  *Complete system functionality demonstration*
   
 </div>
 
@@ -109,20 +109,6 @@ Complete reference for all frequently used commands, including:
   - `robot_dashboard` - Web interface
 
 ---
-
-## 📁 Repository Structure
-
-```
-Fire-Fighting-Robot/
-├── docs/
-│   └── COMMON_CODES.md           # All common commands reference
-├── fire_fighting_robot_bringup/  # Launch files and configs
-├── pca9685_motor_driver_py/      # Motor driver package
-├── mlx90640_driver/              # Thermal camera driver
-├── robot_navigation/             # Navigation stack
-├── robot_dashboard/              # Web interface
-└── README.md                     # This file
-```
 
 ---
 
