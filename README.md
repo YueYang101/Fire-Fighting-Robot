@@ -9,7 +9,7 @@
   
   <h3>Autonomous Fire Detection and Suppression Robot</h3>
   
-  <img src="docs/videos/robot_photo.jpg" alt="Fire Fighting Robot" width="600">
+  <img src="docs/videos/robot%20photo.jpg" alt="Fire Fighting Robot" width="600">
   
 </div>
 
@@ -37,16 +37,16 @@ An autonomous robotic system designed to detect and respond to fire emergencies.
 <table>
 <tr>
 <td width="50%">
-  <video src="docs/videos/aim_dashboard.mp4" width="100%" autoplay loop muted>
-    Your browser does not support the video tag.
-  </video>
-  <p><i>Dashboard-controlled aiming system</i></p>
+  
+  https://github.com/YueYang101/Fire-Fighting-Robot/assets/USER_ID/VIDEO_ID_1
+  
+  *Dashboard-controlled aiming system*
 </td>
 <td width="50%">
-  <video src="docs/videos/aim_hot_water.mp4" width="100%" autoplay loop muted>
-    Your browser does not support the video tag.
-  </video>
-  <p><i>Hot water fire suppression test</i></p>
+  
+  https://github.com/YueYang101/Fire-Fighting-Robot/assets/USER_ID/VIDEO_ID_2
+  
+  *Hot water fire suppression test*
 </td>
 </tr>
 </table>
@@ -55,16 +55,16 @@ An autonomous robotic system designed to detect and respond to fire emergencies.
 <table>
 <tr>
 <td width="50%">
-  <video src="docs/videos/body_calibration.mp4" width="100%" autoplay loop muted>
-    Your browser does not support the video tag.
-  </video>
-  <p><i>Robot body calibration process</i></p>
+  
+  https://github.com/YueYang101/Fire-Fighting-Robot/assets/USER_ID/VIDEO_ID_3
+  
+  *Robot body calibration process*
 </td>
 <td width="50%">
-  <video src="docs/videos/obstacles_avoidance.mp4" width="100%" autoplay loop muted>
-    Your browser does not support the video tag.
-  </video>
-  <p><i>Autonomous obstacle avoidance</i></p>
+  
+  https://github.com/YueYang101/Fire-Fighting-Robot/assets/USER_ID/VIDEO_ID_4
+  
+  *Autonomous obstacle avoidance*
 </td>
 </tr>
 </table>
@@ -73,16 +73,16 @@ An autonomous robotic system designed to detect and respond to fire emergencies.
 <table>
 <tr>
 <td width="50%">
-  <video src="docs/videos/above_view_fire.mp4" width="100%" autoplay loop muted>
-    Your browser does not support the video tag.
-  </video>
-  <p><i>Top-down fire detection view</i></p>
+  
+  https://github.com/YueYang101/Fire-Fighting-Robot/assets/USER_ID/VIDEO_ID_5
+  
+  *Top-down fire detection view*
 </td>
 <td width="50%">
-  <video src="docs/videos/front_view_fire.mp4" width="100%" autoplay loop muted>
-    Your browser does not support the video tag.
-  </video>
-  <p><i>Front-facing fire detection</i></p>
+  
+  https://github.com/YueYang101/Fire-Fighting-Robot/assets/USER_ID/VIDEO_ID_6
+  
+  *Front-facing fire detection*
 </td>
 </tr>
 </table>
