@@ -17,15 +17,15 @@
 
 ## 🎯 Project Overview
 
-An autonomous robotic system designed to detect and respond to fire emergencies. The robot combines thermal imaging, LIDAR navigation, and real-time monitoring capabilities to provide an effective fire detection and suppression solution.
+An autonomous robotic system designed to detect and respond to fire emergencies. The robot operates primarily through automated pathfinding and fire detection algorithms, with thermal imaging and LIDAR navigation providing real-time environmental awareness for intelligent fire suppression response.
 
 ### ✨ Key Features
 
-- 🔥 **Thermal Fire Detection** - MLX90640 thermal camera for heat source identification
-- 🗺️ **Autonomous Navigation** - YDLIDAR G2 for SLAM and obstacle avoidance  
-- 🌐 **Remote Control Dashboard** - Web-based interface for real-time monitoring
-- 🤖 **ROS2 Architecture** - Modular design built on ROS2 Humble
-- 📡 **Wireless Operation** - WiFi connectivity for remote access
+- 🔥 **Automated Fire Detection** - MLX90640 thermal camera automatically identifies heat sources
+- 🗺️ **Autonomous Pathfinding** - YDLIDAR G2 enables SLAM-based navigation to fire locations
+- 🤖 **Intelligent Response System** - Automated decision-making for optimal fire suppression approach
+- 🌐 **Testing Dashboard** - Web interface for troubleshooting and system logic verification
+- 📡 **Wireless Operation** - WiFi connectivity for remote monitoring during testing
 
 ---
 
@@ -144,3 +144,7 @@ Complete reference for all frequently used commands, including:
 - **Framework**: ROS2 Humble
 - **Languages**: Python 3.8+, C++
 - **Dashboard**: Flask + WebSocket
+
+---
+
+---
