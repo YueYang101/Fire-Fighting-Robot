@@ -144,7 +144,3 @@ Complete reference for all frequently used commands, including:
 - **Framework**: ROS2 Humble
 - **Languages**: Python 3.8+, C++
 - **Dashboard**: Flask + WebSocket
-
----
-
----
